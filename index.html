@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Menuette — Chef's Studio</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ============================== Connection status ============================== -->
+<div id="status-banner" class="hidden"></div>
+
+<!-- ============================== Access gate ============================== -->
+<div id="gate-screen">
+  <div class="center-screen">
+    <div class="panel-card">
+      <div class="brand-mark">🍽️ Menuette</div>
+      <div class="brand-sub">CHEF'S STUDIO</div>
+      <input id="gate-pin" class="field" placeholder="Access code" type="password" inputmode="numeric" autocomplete="off">
+      <div id="gate-error" class="error-text"></div>
+      <button id="gate-unlock-btn" class="btn btn-gold btn-block">🔒 Unlock</button>
+      <div class="hint-text">Ask whoever set up Menuette for the access code.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== Main app ============================== -->
+<div id="app-shell" class="hidden">
+  <div id="app-header">
+    <div class="header-row">
+      <div>
+        <div class="header-title">🍽️ Menuette</div>
+        <div class="header-sub">CHEF'S STUDIO</div>
+      </div>
+      <div class="header-right">
+        <span class="pill-btn" id="dish-count-pill">0 dishes</span>
+        <button id="lock-btn" class="pill-btn" title="Lock">⇦ Lock</button>
+      </div>
+    </div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" data-view="vault">🗄️ Dish Vault</button>
+      <button class="nav-tab" data-view="builder">📝 Menu Builder</button>
+      <button class="nav-tab" data-view="saved">📚 Saved Menus</button>
+      <button class="nav-tab" data-view="import">📥 Import Menu</button>
+    </div>
+  </div>
+
+  <div id="app-body">
+    <div id="view-vault"></div>
+    <div id="view-builder" class="hidden"></div>
+    <div id="view-saved" class="hidden"></div>
+    <div id="view-import" class="hidden"></div>
+  </div>
+</div>
+
+<!-- ============================== Modal ============================== -->
+<div id="modal-backdrop" class="modal-backdrop hidden">
+  <div id="modal-card" class="modal-card"></div>
+</div>
+
+<!-- ============================== Hidden print target (PDF export) ============================== -->
+<div id="print-area"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.7.2/mammoth.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+<script src="firebase-config.js"></script>
+<script src="data/default-categories.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
