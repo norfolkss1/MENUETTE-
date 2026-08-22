@@ -160,8 +160,8 @@ function listenMenus() {
   }, (err) => showStatus(connectionErrorMsg(err)));
 }
 function refreshCurrentView() {
-  if (state.view === "vault") renderVaultList();
-  else if (state.view === "builder") renderPickerList();
+  if (state.view === "vault") { renderVaultCatChips(); renderVaultList(); }
+  else if (state.view === "builder") { renderPickerCatChips(); renderPickerList(); }
   else if (state.view === "saved") renderSavedList();
 }
 
