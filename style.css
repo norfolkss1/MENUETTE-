@@ -209,16 +209,34 @@ textarea.field { resize: vertical; }
 }
 .menu-page .menu-title.align-left { text-align: left; }
 .menu-page .menu-title.align-center { text-align: center; }
+.menu-page .menu-section-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 16px 0 6px;
+}
+.menu-page .menu-section-row.align-center { justify-content: center; }
+.menu-page .menu-section-row.align-left { justify-content: flex-start; }
 .menu-page .menu-section {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 13px;
   letter-spacing: 1.5px;
-  margin: 16px 0 6px;
   color: var(--accent-soft);
 }
-.menu-page .menu-section.align-left { text-align: left; }
-.menu-page .menu-section.align-center { text-align: center; }
+.menu-page .section-move-btn {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: 4px;
+  opacity: 0.45;
+}
+.menu-page .section-move-btn:hover { opacity: 1; background: var(--accent-tint); color: var(--accent-soft); }
+.menu-page .section-move-btn:disabled { opacity: 0.15; cursor: default; }
 .menu-page .menu-dish { font-size: 12.5px; margin-top: 8px; }
 .menu-page .menu-dish.align-left { text-align: left; }
 .menu-page .menu-dish.align-center { text-align: center; }
@@ -241,7 +259,9 @@ textarea.field { resize: vertical; }
   min-width: 12px;
   display: inline-block;
 }
-.menu-page .ddesc[contenteditable="true"] { display: block; }
+.menu-page .ddesc[contenteditable="true"],
+.menu-page .menu-title[contenteditable="true"],
+.menu-page .menu-section[contenteditable="true"] { display: block; }
 .menu-page [contenteditable="true"]:hover { outline: 1px dashed var(--accent-tint); }
 .menu-page [contenteditable="true"]:focus { outline: 1px solid var(--accent); background: #fff8ec; }
 .menu-page [contenteditable="true"]:empty::before {
@@ -261,18 +281,27 @@ textarea.field { resize: vertical; }
   .menu-page-wrap { padding: 0; }
   .menu-page [contenteditable] { outline: none !important; background: transparent !important; }
   .menu-page [contenteditable]:empty::before { content: none !important; }
+  .menu-page .section-move-btn { display: none !important; }
 }
 
 /* ---------------- Ingredient cost editor (Dish Vault modal) ---------------- */
-.ingredient-row { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 6px; }
-.ingredient-row .field { margin-bottom: 0; }
-.ingredient-row .ing-name { width: 100%; }
-.ingredient-row .ing-qty { width: 64px; flex: none; }
-.ingredient-row .ing-unit { width: 78px; flex: none; }
-.ingredient-row .ing-price { width: 90px; flex: none; }
-.ingredient-row .ing-total { width: 74px; flex: none; text-align: right; font-weight: 700; font-size: 13px; color: var(--accent-soft); padding-top: 11px; }
+.modal-card.modal-wide { max-width: 680px; }
 
-.ing-name-wrap { position: relative; flex: 2; min-width: 0; }
+.ingredient-row {
+  border: 1px solid var(--border); border-radius: 10px; padding: 10px;
+  margin-bottom: 8px; background: var(--panel-2);
+}
+.ingredient-row .field { margin-bottom: 0; }
+.ing-name-wrap { position: relative; margin-bottom: 8px; }
+.ingredient-row .ing-name { width: 100%; }
+.ing-controls-row { display: flex; align-items: center; gap: 8px; }
+.ing-controls-row .ing-qty { width: 80px; flex: none; }
+.ing-controls-row .ing-unit { width: 90px; flex: none; }
+.ing-controls-row .ing-price { width: 110px; flex: none; }
+.ing-controls-row .ing-total {
+  flex: 1; min-width: 90px; text-align: right; font-weight: 700; font-size: 14px; color: var(--accent-soft);
+}
+.ing-controls-row .ing-remove-btn { flex: none; }
 .ing-search-results {
   position: absolute; top: 100%; left: 0; right: 0; margin-top: 3px; z-index: 50;
   background: #fff; border: 1px solid var(--border); border-radius: 10px;

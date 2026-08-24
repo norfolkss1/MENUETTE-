@@ -115,21 +115,29 @@ assets/me-dubai-logo.png   the "ME DUBAI" logo from Sample.docx
 - **Menu Builder** — pick dishes into a canvas grouped by category, see a
   running **total cost** and per-category subtotal live, and a **live styled
   preview** in the exact ME Dubai page layout (sand border, logo, fonts) that
-  updates as you edit — this is also exactly what gets printed to PDF.
+  updates as you edit — this is the same page that gets exported to PDF/Word.
   **The preview itself is directly editable** — click any dish name,
   description, allergen tag, section heading, or the menu title right on the
   page and type; changes apply to this menu only (the Dish Vault's master
   record is untouched), so tweaking a dish's wording for one event doesn't
   change it everywhere else. UPPERCASE mode is a pure display style — the
   real text underneath stays exactly as typed. Clearing a section heading
-  (e.g. deleting "SWEET COFFEE BREAK") hides it from the preview, print, and
-  Word export while keeping its dishes grouped together — click the blank
-  space where it was to type a new label back in. Canvas items have ↑/↓
-  buttons to reorder them within their section.
-- **Export** — name the file, then export as a real **.docx** (built client-side,
-  with the border/logo embedded at the same position as the original template)
-  or as **PDF** (opens the browser print dialog on the styled preview — choose
-  "Save as PDF"; the suggested file name is already filled in).
+  (e.g. deleting "SWEET COFFEE BREAK") hides it from the preview, PDF, print,
+  and Word export while keeping its dishes grouped together — click the
+  blank space where it was to type a new label back in. Each section heading
+  also has ▲/▼ buttons to reorder entire sections (e.g. put Dessert before
+  Main for one specific menu); canvas cards have their own ↑/↓ to reorder
+  dishes within a section.
+- **Export** — name the file, then:
+  - **📕 Export PDF** downloads a real `.pdf` file directly — no print dialog
+    involved. It's a high-resolution snapshot of the exact live preview, so
+    it always matches what's on screen pixel-for-pixel.
+  - **📄 Export Word (.docx)** builds a real, editable Word document
+    client-side, with the border/logo embedded at the same position as the
+    original template.
+  - **🖨️ Print** is separate from both — it opens the browser's print dialog
+    on the styled page, for physically printing or manually choosing
+    "Save as PDF" from the OS print dialog if you'd rather do it that way.
 - **Saved Menus** — save a menu by name; the list shows every saved menu with
   its total cost side by side, so you can see which menu costs what. Click
   "Load" to reopen one in the builder.

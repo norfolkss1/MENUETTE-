@@ -48,6 +48,7 @@ const state = {
     filename: "",
     activeMenuId: null,
     sectionLabels: {},
+    sectionOrder: [],
   },
   importReview: [],
 };
@@ -220,8 +221,10 @@ function switchView(view) {
 }
 
 /* ============================== Modal ============================== */
-function openModal(html) {
-  document.getElementById("modal-card").innerHTML = `<button class="modal-close" data-action="close-modal">✕</button>${html}`;
+function openModal(html, opts) {
+  const card = document.getElementById("modal-card");
+  card.innerHTML = `<button class="modal-close" data-action="close-modal">✕</button>${html}`;
+  card.classList.toggle("modal-wide", !!(opts && opts.wide));
   document.getElementById("modal-backdrop").classList.remove("hidden");
 }
 function closeModal() { document.getElementById("modal-backdrop").classList.add("hidden"); }
@@ -337,7 +340,7 @@ function openDishModal(dish) {
     </div>
 
     <button id="dm-save" class="btn btn-primary btn-block" style="margin-top:14px;">💾 Save Dish</button>
-  `);
+  `, { wide: true });
 
   let chosenCat = d.category;
   const catsWrap = document.getElementById("dm-cats");
@@ -360,13 +363,15 @@ function openDishModal(dish) {
           <input class="field ing-name" placeholder="Search your price list…" autocomplete="off" data-field="name" value="${escapeHtml(ing.name)}">
           <div class="ing-search-results hidden" data-idx="${i}"></div>
         </div>
-        <input class="field ing-qty" type="number" step="0.001" min="0" placeholder="Qty" data-field="qty" value="${ing.qty}">
-        <select class="field ing-unit" data-field="unit">
-          ${UNITS.map((u) => `<option value="${u}" ${ing.unit === u ? "selected" : ""}>${u}</option>`).join("")}
-        </select>
-        <input class="field ing-price" type="number" step="0.01" min="0" placeholder="Price/unit" data-field="unitPrice" value="${ing.unitPrice}">
-        <span class="ing-total">${formatCurrency((Number(ing.qty) || 0) * (Number(ing.unitPrice) || 0))}</span>
-        <button type="button" class="btn btn-danger btn-sm" data-remove-ing="${i}">✕</button>
+        <div class="ing-controls-row">
+          <input class="field ing-qty" type="number" step="0.001" min="0" placeholder="Qty" data-field="qty" value="${ing.qty}">
+          <select class="field ing-unit" data-field="unit">
+            ${UNITS.map((u) => `<option value="${u}" ${ing.unit === u ? "selected" : ""}>${u}</option>`).join("")}
+          </select>
+          <input class="field ing-price" type="number" step="0.01" min="0" placeholder="Price/unit" data-field="unitPrice" value="${ing.unitPrice}">
+          <span class="ing-total">${formatCurrency((Number(ing.qty) || 0) * (Number(ing.unitPrice) || 0))}</span>
+          <button type="button" class="btn btn-danger btn-sm ing-remove-btn" data-remove-ing="${i}">✕</button>
+        </div>
       </div>
     `).join("");
 
@@ -574,7 +579,8 @@ function renderBuilderShell() {
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
           <button id="b-save" class="btn btn-outline">💾 Save Menu</button>
           <button id="b-export-docx" class="btn btn-primary">📄 Export Word (.docx)</button>
-          <button id="b-export-pdf" class="btn btn-primary">🖨️ Export PDF</button>
+          <button id="b-export-pdf" class="btn btn-primary">📕 Export PDF</button>
+          <button id="b-print" class="btn btn-ghost">🖨️ Print</button>
         </div>
 
         <div class="section-title">Live Preview</div>
@@ -592,6 +598,7 @@ function renderBuilderShell() {
   document.getElementById("b-save").addEventListener("click", saveCurrentMenu);
   document.getElementById("b-export-docx").addEventListener("click", exportDocx);
   document.getElementById("b-export-pdf").addEventListener("click", exportPdf);
+  document.getElementById("b-print").addEventListener("click", printMenu);
 
   const previewEl = document.getElementById("preview-wrap");
   previewEl.addEventListener("input", handlePreviewInput);
@@ -601,6 +608,11 @@ function renderBuilderShell() {
       e.preventDefault();
       e.target.blur();
     }
+  });
+  previewEl.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-move-section]");
+    if (!btn) return;
+    moveSection(btn.dataset.category, btn.dataset.moveSection === "up" ? -1 : 1);
   });
 
   renderPickerCatChips();
@@ -666,6 +678,22 @@ function moveCanvasItem(idx, dir) {
   [arr[idx], arr[swapIdx]] = [arr[swapIdx], arr[idx]];
   renderCanvasAndPreview();
 }
+function getSectionOrder() {
+  const b = state.builder;
+  if (b.sectionOrder && b.sectionOrder.length) return b.sectionOrder;
+  // lazily derive the natural order (global category order, plus any
+  // custom/leftover categories present on the canvas) the first time it's needed
+  return groupByCategory(b.canvas, state.categories).map((g) => g.category);
+}
+function moveSection(category, dir) {
+  const order = getSectionOrder().slice();
+  const idx = order.indexOf(category);
+  const swapIdx = idx + dir;
+  if (idx === -1 || swapIdx < 0 || swapIdx >= order.length) return;
+  [order[idx], order[swapIdx]] = [order[swapIdx], order[idx]];
+  state.builder.sectionOrder = order;
+  renderCanvasAndPreview();
+}
 function syncCanvasSummary() {
   const canvasEl = document.getElementById("canvas-list");
   const costEl = document.getElementById("cost-bar-wrap");
@@ -717,6 +745,7 @@ function renderCanvasAndPreview() {
     italics: state.builder.italics,
     titleText: state.builder.titleText,
     sectionLabels: state.builder.sectionLabels,
+    sectionOrder: getSectionOrder(),
   });
 }
 
@@ -756,9 +785,9 @@ function buildMenuPageHTML(items, opts) {
   if (!items.length) {
     body = `<div class="menu-empty">Add dishes to see the menu preview.</div>`;
   } else {
-    const groups = groupByCategory(items, state.categories);
+    const groups = groupByCategory(items, opts.sectionOrder && opts.sectionOrder.length ? opts.sectionOrder : state.categories);
     const sectionLabels = opts.sectionLabels || {};
-    body = groups.map((g) => {
+    body = groups.map((g, gi) => {
       const label = Object.prototype.hasOwnProperty.call(sectionLabels, g.category) ? sectionLabels[g.category] : g.category.toUpperCase();
       const dishesHtml = g.items.map((item) => {
         const idx = items.indexOf(item);
@@ -768,8 +797,13 @@ function buildMenuPageHTML(items, opts) {
           <span class="ddesc" ${ce} data-idx="${idx}" data-field="description" data-placeholder="Add a description…" style="${opts.italics ? "" : "font-style:normal;"}">${escapeHtml(item.description)}</span>
         </div>`;
       }).join("");
+      const moveUpBtn = editable ? `<button type="button" class="section-move-btn" data-move-section="up" data-category="${escapeHtml(g.category)}" ${gi === 0 ? "disabled" : ""} title="Move section up">▲</button>` : "";
+      const moveDownBtn = editable ? `<button type="button" class="section-move-btn" data-move-section="down" data-category="${escapeHtml(g.category)}" ${gi === groups.length - 1 ? "disabled" : ""} title="Move section down">▼</button>` : "";
       return `
-      <div class="menu-section ${alignClass}" ${ce} data-field="section" data-category="${escapeHtml(g.category)}" data-placeholder="(section name — click to restore)">${escapeHtml(label)}</div>
+      <div class="menu-section-row ${alignClass}">
+        ${moveUpBtn}${moveDownBtn}
+        <div class="menu-section" ${ce} data-field="section" data-category="${escapeHtml(g.category)}" data-placeholder="(section name — click to restore)">${escapeHtml(label)}</div>
+      </div>
       ${dishesHtml}
     `;
     }).join("");
@@ -797,7 +831,7 @@ async function saveCurrentMenu() {
   const payload = {
     name, items: b.canvas, titleText: b.titleText, alignment: b.alignment,
     uppercase: b.uppercase, italics: b.italics, sectionLabels: b.sectionLabels || {},
-    totalCost: total, updatedAt: Date.now(),
+    sectionOrder: getSectionOrder(), totalCost: total, updatedAt: Date.now(),
   };
   if (b.activeMenuId) await db.collection("menus").doc(b.activeMenuId).set(payload);
   else {
@@ -832,7 +866,7 @@ async function exportDocx() {
     const titleText = b.uppercase ? b.titleText.toUpperCase() : b.titleText;
     children.push(new Paragraph({ alignment: align, spacing: { after: 200 }, children: [new TextRun({ text: titleText || "MENU", bold: true, size: 44 })] }));
 
-    groupByCategory(b.canvas, state.categories).forEach((g) => {
+    groupByCategory(b.canvas, getSectionOrder()).forEach((g) => {
       const label = Object.prototype.hasOwnProperty.call(b.sectionLabels || {}, g.category) ? b.sectionLabels[g.category] : g.category.toUpperCase();
       if (label) {
         children.push(new Paragraph({ alignment: align, spacing: { before: 200, after: 80 }, children: [new TextRun({ text: label, bold: true, size: 26 })] }));
@@ -898,11 +932,57 @@ async function exportDocx() {
   }
 }
 
-/* ---------------- Export: PDF (browser print) ---------------- */
-function exportPdf() {
+/* ---------------- Export: PDF (real downloadable file, no print dialog) ---------------- */
+async function exportPdf() {
   const b = state.builder;
   if (!b.canvas.length) { alert("Add at least one dish before exporting."); return; }
-  const html = buildMenuPageHTML(b.canvas, { alignment: b.alignment, uppercase: b.uppercase, italics: b.italics, titleText: b.titleText, sectionLabels: b.sectionLabels, editable: false });
+  const btn = document.getElementById("b-export-pdf");
+  btn.disabled = true; btn.textContent = "Building…";
+  let holder;
+  try {
+    const html = buildMenuPageHTML(b.canvas, {
+      alignment: b.alignment, uppercase: b.uppercase, italics: b.italics,
+      titleText: b.titleText, sectionLabels: b.sectionLabels, sectionOrder: getSectionOrder(),
+      editable: false,
+    });
+    // Render a clean off-screen copy (no editing outlines/buttons) at high
+    // resolution, then rasterize it into a PDF sized to the real page —
+    // this guarantees the PDF looks exactly like the preview, since it's
+    // literally a snapshot of the same DOM/CSS, not a separate layout engine.
+    holder = document.createElement("div");
+    holder.style.position = "fixed";
+    holder.style.left = "-10000px";
+    holder.style.top = "0";
+    holder.innerHTML = `<div class="menu-page-wrap" style="padding:0;">${html}</div>`;
+    document.body.appendChild(holder);
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+
+    const pageEl = holder.querySelector(".menu-page");
+    const canvas = await html2canvas(pageEl, { scale: 3, useCORS: true, backgroundColor: "#ffffff" });
+    const imgData = canvas.toDataURL("image/jpeg", 0.95);
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: "in", format: [PAGE.widthIn, PAGE.heightIn] });
+    pdf.addImage(imgData, "JPEG", 0, 0, PAGE.widthIn, PAGE.heightIn);
+    pdf.save(`${sanitizeFilename(b.filename || b.titleText)}.pdf`);
+  } catch (err) {
+    console.error(err);
+    alert("Couldn't build the PDF: " + err.message);
+  } finally {
+    if (holder) document.body.removeChild(holder);
+    btn.disabled = false; btn.textContent = "📕 Export PDF";
+  }
+}
+
+/* ---------------- Print (browser print dialog — separate from PDF export) ---------------- */
+function printMenu() {
+  const b = state.builder;
+  if (!b.canvas.length) { alert("Add at least one dish before printing."); return; }
+  const html = buildMenuPageHTML(b.canvas, {
+    alignment: b.alignment, uppercase: b.uppercase, italics: b.italics,
+    titleText: b.titleText, sectionLabels: b.sectionLabels, sectionOrder: getSectionOrder(),
+    editable: false,
+  });
   document.getElementById("print-area").innerHTML = `<div class="menu-page-wrap">${html}</div>`;
   const prevTitle = document.title;
   document.title = sanitizeFilename(b.filename || b.titleText);
@@ -950,6 +1030,7 @@ function loadMenu(id) {
     uppercase: !!m.uppercase, italics: !!m.italics,
     filename: sanitizeFilename(m.name), activeMenuId: m.id,
     sectionLabels: { ...(m.sectionLabels || {}) },
+    sectionOrder: (m.sectionOrder || []).slice(),
   };
   switchView("builder");
 }
