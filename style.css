@@ -210,13 +210,10 @@ textarea.field { resize: vertical; }
 .menu-page .menu-title.align-left { text-align: left; }
 .menu-page .menu-title.align-center { text-align: center; }
 .menu-page .menu-section-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  position: relative;
   margin: 16px 0 6px;
+  min-height: 20px;
 }
-.menu-page .menu-section-row.align-center { justify-content: center; }
-.menu-page .menu-section-row.align-left { justify-content: flex-start; }
 .menu-page .menu-section {
   font-family: var(--font-display);
   font-weight: 700;
@@ -224,19 +221,38 @@ textarea.field { resize: vertical; }
   letter-spacing: 1.5px;
   color: var(--accent-soft);
 }
+.menu-page .menu-section-row.align-center .menu-section { text-align: center; }
+.menu-page .menu-section-row.align-left .menu-section { text-align: left; }
+/* Move controls are pinned to a fixed spot (not next to the text) so they
+   land in the same place on every row regardless of alignment or how long
+   the section label is — a floating inline button next to centered text
+   shifts position per row and is unreliable to click. */
+.menu-page .section-move-col {
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 .menu-page .section-move-btn {
   border: none;
-  background: transparent;
+  background: var(--panel-2);
   color: var(--muted);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1;
-  padding: 3px 5px;
+  width: 24px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 4px;
-  opacity: 0.45;
+  opacity: 0.7;
 }
 .menu-page .section-move-btn:hover { opacity: 1; background: var(--accent-tint); color: var(--accent-soft); }
-.menu-page .section-move-btn:disabled { opacity: 0.15; cursor: default; }
+.menu-page .section-move-btn:disabled { opacity: 0.2; cursor: default; }
 .menu-page .menu-dish { font-size: 12.5px; margin-top: 8px; }
 .menu-page .menu-dish.align-left { text-align: left; }
 .menu-page .menu-dish.align-center { text-align: center; }
@@ -273,6 +289,12 @@ textarea.field { resize: vertical; }
 /* ---------------- Print / PDF export ---------------- */
 #print-area { display: none; }
 @media print {
+  /* Browsers suppress CSS background-images/colors when printing by default
+     (the "Background graphics" print-dialog checkbox) — without this, the
+     sand-swirl border and logo (both CSS backgrounds) print as blank white,
+     leaving only the text. This forces them to print regardless of that
+     browser setting. */
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
   body * { visibility: hidden; }
   #print-area, #print-area * { visibility: visible; }
   #print-area { display: block; position: absolute; top: 0; left: 0; }
@@ -281,7 +303,7 @@ textarea.field { resize: vertical; }
   .menu-page-wrap { padding: 0; }
   .menu-page [contenteditable] { outline: none !important; background: transparent !important; }
   .menu-page [contenteditable]:empty::before { content: none !important; }
-  .menu-page .section-move-btn { display: none !important; }
+  .menu-page .section-move-col { display: none !important; }
 }
 
 /* ---------------- Ingredient cost editor (Dish Vault modal) ---------------- */

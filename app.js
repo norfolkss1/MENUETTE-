@@ -671,10 +671,23 @@ function removeFromCanvas(index) {
   renderPickerList();
   renderCanvasAndPreview();
 }
+function findSameCategoryNeighbor(arr, idx, dir) {
+  // The preview groups dishes by category, so a plain adjacent-index swap is
+  // often invisible (no effect) when the immediate neighbor is in a
+  // different section. Skip past other categories to the nearest dish in
+  // the SAME category, so every up/down click visibly reorders the preview.
+  const cat = arr[idx].category;
+  let i = idx + dir;
+  while (i >= 0 && i < arr.length) {
+    if (arr[i].category === cat) return i;
+    i += dir;
+  }
+  return -1;
+}
 function moveCanvasItem(idx, dir) {
   const arr = state.builder.canvas;
-  const swapIdx = idx + dir;
-  if (swapIdx < 0 || swapIdx >= arr.length) return;
+  const swapIdx = findSameCategoryNeighbor(arr, idx, dir);
+  if (swapIdx === -1) return;
   [arr[idx], arr[swapIdx]] = [arr[swapIdx], arr[idx]];
   renderCanvasAndPreview();
 }
@@ -710,8 +723,8 @@ function syncCanvasSummary() {
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
           <div style="display:flex;flex-direction:column;gap:2px;">
-            <button class="btn btn-ghost btn-sm" data-move="up" data-idx="${i}" ${i === 0 ? "disabled" : ""} style="padding:2px 8px;min-height:0;" title="Move up">↑</button>
-            <button class="btn btn-ghost btn-sm" data-move="down" data-idx="${i}" ${i === items.length - 1 ? "disabled" : ""} style="padding:2px 8px;min-height:0;" title="Move down">↓</button>
+            <button class="btn btn-ghost btn-sm" data-move="up" data-idx="${i}" ${findSameCategoryNeighbor(items, i, -1) === -1 ? "disabled" : ""} style="padding:2px 8px;min-height:0;" title="Move up within its section">↑</button>
+            <button class="btn btn-ghost btn-sm" data-move="down" data-idx="${i}" ${findSameCategoryNeighbor(items, i, 1) === -1 ? "disabled" : ""} style="padding:2px 8px;min-height:0;" title="Move down within its section">↓</button>
           </div>
           <div style="text-align:right;">
             <div class="dish-cost">${formatCurrency(item.cost)}</div>
@@ -797,12 +810,15 @@ function buildMenuPageHTML(items, opts) {
           <span class="ddesc" ${ce} data-idx="${idx}" data-field="description" data-placeholder="Add a description…" style="${opts.italics ? "" : "font-style:normal;"}">${escapeHtml(item.description)}</span>
         </div>`;
       }).join("");
-      const moveUpBtn = editable ? `<button type="button" class="section-move-btn" data-move-section="up" data-category="${escapeHtml(g.category)}" ${gi === 0 ? "disabled" : ""} title="Move section up">▲</button>` : "";
-      const moveDownBtn = editable ? `<button type="button" class="section-move-btn" data-move-section="down" data-category="${escapeHtml(g.category)}" ${gi === groups.length - 1 ? "disabled" : ""} title="Move section down">▼</button>` : "";
+      const moveCol = editable ? `
+        <div class="section-move-col">
+          <button type="button" class="section-move-btn" data-move-section="up" data-category="${escapeHtml(g.category)}" ${gi === 0 ? "disabled" : ""} title="Move section up">▲</button>
+          <button type="button" class="section-move-btn" data-move-section="down" data-category="${escapeHtml(g.category)}" ${gi === groups.length - 1 ? "disabled" : ""} title="Move section down">▼</button>
+        </div>` : "";
       return `
       <div class="menu-section-row ${alignClass}">
-        ${moveUpBtn}${moveDownBtn}
         <div class="menu-section" ${ce} data-field="section" data-category="${escapeHtml(g.category)}" data-placeholder="(section name — click to restore)">${escapeHtml(label)}</div>
+        ${moveCol}
       </div>
       ${dishesHtml}
     `;
