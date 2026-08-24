@@ -104,22 +104,28 @@ assets/me-dubai-logo.png   the "ME DUBAI" logo from Sample.docx
   deletes categories (renaming a category updates every dish tagged with it).
   Cost is built from an **itemized ingredient list** per dish, not a single
   typed-in number — add or remove ingredient rows, set each one's quantity/
-  unit/price, and the dish's total cost adds up live. Typing an ingredient
-  name offers autocomplete against `priceBook` (seeded from a real supplier
-  price list) and auto-fills its unit + price; you can still type any custom
-  ingredient/price that isn't in the book. Dishes migrated before this existed
-  show a single "(previous flat estimate)" row — replace it with real
-  ingredients whenever you're ready.
+  unit/price, and the dish's total cost adds up live. Click or type in an
+  ingredient's name box to open a searchable dropdown of your full
+  `priceBook` (188 items from the supplier price list) — matches update live
+  as you type, each showing its unit and price, and clicking one visibly
+  fills the row so you can see exactly what you picked. You can still type
+  any custom ingredient/price that isn't in the book. Dishes migrated before
+  this existed show a single "(previous flat estimate)" row — replace it
+  with real ingredients whenever you're ready.
 - **Menu Builder** — pick dishes into a canvas grouped by category, see a
   running **total cost** and per-category subtotal live, and a **live styled
   preview** in the exact ME Dubai page layout (sand border, logo, fonts) that
   updates as you edit — this is also exactly what gets printed to PDF.
   **The preview itself is directly editable** — click any dish name,
-  description, allergen tag, or the menu title right on the page and type;
-  changes apply to this menu only (the Dish Vault's master record is
-  untouched), so tweaking a dish's wording for one event doesn't change it
-  everywhere else. UPPERCASE mode is a pure display style — the real text
-  underneath stays exactly as typed.
+  description, allergen tag, section heading, or the menu title right on the
+  page and type; changes apply to this menu only (the Dish Vault's master
+  record is untouched), so tweaking a dish's wording for one event doesn't
+  change it everywhere else. UPPERCASE mode is a pure display style — the
+  real text underneath stays exactly as typed. Clearing a section heading
+  (e.g. deleting "SWEET COFFEE BREAK") hides it from the preview, print, and
+  Word export while keeping its dishes grouped together — click the blank
+  space where it was to type a new label back in. Canvas items have ↑/↓
+  buttons to reorder them within their section.
 - **Export** — name the file, then export as a real **.docx** (built client-side,
   with the border/logo embedded at the same position as the original template)
   or as **PDF** (opens the browser print dialog on the styled preview — choose

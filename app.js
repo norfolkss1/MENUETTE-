@@ -47,6 +47,7 @@ const state = {
     italics: false,
     filename: "",
     activeMenuId: null,
+    sectionLabels: {},
   },
   importReview: [],
 };
@@ -355,7 +356,10 @@ function openDishModal(dish) {
     const wrap = document.getElementById("dm-ingredients");
     wrap.innerHTML = pendingIngredients.map((ing, i) => `
       <div class="ingredient-row" data-idx="${i}">
-        <input class="field ing-name" list="ingredient-namelist" placeholder="Ingredient" data-field="name" value="${escapeHtml(ing.name)}">
+        <div class="ing-name-wrap">
+          <input class="field ing-name" placeholder="Search your price list…" autocomplete="off" data-field="name" value="${escapeHtml(ing.name)}">
+          <div class="ing-search-results hidden" data-idx="${i}"></div>
+        </div>
         <input class="field ing-qty" type="number" step="0.001" min="0" placeholder="Qty" data-field="qty" value="${ing.qty}">
         <select class="field ing-unit" data-field="unit">
           ${UNITS.map((u) => `<option value="${u}" ${ing.unit === u ? "selected" : ""}>${u}</option>`).join("")}
@@ -369,20 +373,31 @@ function openDishModal(dish) {
     wrap.querySelectorAll(".ingredient-row").forEach((row) => {
       const idx = Number(row.dataset.idx);
       row.querySelectorAll("[data-field]").forEach((input) => {
+        if (input.dataset.field === "name") return; // wired separately below
         input.addEventListener("input", () => {
           pendingIngredients[idx][input.dataset.field] = input.value;
           updateTotals();
         });
-        if (input.dataset.field === "name") {
-          input.addEventListener("change", () => {
-            const match = state.priceBook.find((p) => p.name.toLowerCase() === input.value.trim().toLowerCase());
-            if (match && !Number(pendingIngredients[idx].unitPrice)) {
-              pendingIngredients[idx].unit = match.unit;
-              pendingIngredients[idx].unitPrice = match.unitPrice;
-              renderIngredientRows();
-            }
-          });
-        }
+      });
+
+      const nameInput = row.querySelector(".ing-name");
+      const resultsEl = row.querySelector(".ing-search-results");
+      nameInput.addEventListener("input", () => {
+        pendingIngredients[idx].name = nameInput.value;
+        showIngredientSearch(idx);
+      });
+      nameInput.addEventListener("focus", () => showIngredientSearch(idx));
+      nameInput.addEventListener("blur", () => {
+        setTimeout(() => resultsEl.classList.add("hidden"), 150);
+      });
+      resultsEl.addEventListener("mousedown", (e) => {
+        const item = e.target.closest(".ing-result-item");
+        if (!item) return;
+        e.preventDefault();
+        pendingIngredients[idx].name = item.dataset.name;
+        pendingIngredients[idx].unit = item.dataset.unit;
+        pendingIngredients[idx].unitPrice = Number(item.dataset.price);
+        renderIngredientRows();
       });
     });
     wrap.querySelectorAll("[data-remove-ing]").forEach((btn) => {
@@ -392,6 +407,26 @@ function openDishModal(dish) {
       });
     });
     updateTotals();
+  }
+  function showIngredientSearch(idx) {
+    const resultsEl = document.querySelector(`.ing-search-results[data-idx="${idx}"]`);
+    if (!resultsEl) return;
+    const query = (pendingIngredients[idx].name || "").trim().toLowerCase();
+    const matches = query ? state.priceBook.filter((p) => p.name.toLowerCase().includes(query)) : state.priceBook;
+    const shown = matches.slice(0, 60);
+    let html = shown.length
+      ? shown.map((p) => `
+          <div class="ing-result-item" data-name="${escapeHtml(p.name)}" data-unit="${escapeHtml(p.unit)}" data-price="${p.unitPrice}">
+            <span class="ing-result-name">${escapeHtml(p.name)}</span>
+            <span class="ing-result-meta">${escapeHtml(p.unit)} · ${formatCurrency(p.unitPrice)}</span>
+          </div>
+        `).join("")
+      : `<div class="ing-search-empty">No match in your price list — you can still type a custom ingredient and price below.</div>`;
+    if (matches.length > shown.length) {
+      html += `<div class="ing-search-empty">+${matches.length - shown.length} more — keep typing to narrow it down</div>`;
+    }
+    resultsEl.innerHTML = html;
+    resultsEl.classList.remove("hidden");
   }
   function updateTotals() {
     document.querySelectorAll("#dm-ingredients .ingredient-row").forEach((row, i) => {
@@ -624,6 +659,13 @@ function removeFromCanvas(index) {
   renderPickerList();
   renderCanvasAndPreview();
 }
+function moveCanvasItem(idx, dir) {
+  const arr = state.builder.canvas;
+  const swapIdx = idx + dir;
+  if (swapIdx < 0 || swapIdx >= arr.length) return;
+  [arr[idx], arr[swapIdx]] = [arr[swapIdx], arr[idx]];
+  renderCanvasAndPreview();
+}
 function syncCanvasSummary() {
   const canvasEl = document.getElementById("canvas-list");
   const costEl = document.getElementById("cost-bar-wrap");
@@ -638,13 +680,22 @@ function syncCanvasSummary() {
         <div>
           <div class="dish-name">${escapeHtml(item.name)} <span class="badge">${escapeHtml(item.category)}</span></div>
         </div>
-        <div style="text-align:right;">
-          <div class="dish-cost">${formatCurrency(item.cost)}</div>
-          <button class="btn btn-danger btn-sm" data-remove="${i}">✕ Remove</button>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="display:flex;flex-direction:column;gap:2px;">
+            <button class="btn btn-ghost btn-sm" data-move="up" data-idx="${i}" ${i === 0 ? "disabled" : ""} style="padding:2px 8px;min-height:0;" title="Move up">↑</button>
+            <button class="btn btn-ghost btn-sm" data-move="down" data-idx="${i}" ${i === items.length - 1 ? "disabled" : ""} style="padding:2px 8px;min-height:0;" title="Move down">↓</button>
+          </div>
+          <div style="text-align:right;">
+            <div class="dish-cost">${formatCurrency(item.cost)}</div>
+            <button class="btn btn-danger btn-sm" data-remove="${i}">✕ Remove</button>
+          </div>
         </div>
       </div>
     `).join("");
     canvasEl.querySelectorAll("[data-remove]").forEach((btn) => btn.addEventListener("click", () => removeFromCanvas(Number(btn.dataset.remove))));
+    canvasEl.querySelectorAll("[data-move]").forEach((btn) => {
+      btn.addEventListener("click", () => moveCanvasItem(Number(btn.dataset.idx), btn.dataset.move === "up" ? -1 : 1));
+    });
   }
 
   const total = items.reduce((s, i) => s + (Number(i.cost) || 0), 0);
@@ -665,6 +716,7 @@ function renderCanvasAndPreview() {
     uppercase: state.builder.uppercase,
     italics: state.builder.italics,
     titleText: state.builder.titleText,
+    sectionLabels: state.builder.sectionLabels,
   });
 }
 
@@ -680,6 +732,8 @@ function handlePreviewInput(e) {
   const text = el.textContent;
   if (field === "title") {
     state.builder.titleText = text;
+  } else if (field === "section") {
+    state.builder.sectionLabels[el.dataset.category] = text;
   } else if (el.dataset.idx !== undefined) {
     const idx = Number(el.dataset.idx);
     if (state.builder.canvas[idx]) state.builder.canvas[idx][field] = text;
@@ -703,17 +757,22 @@ function buildMenuPageHTML(items, opts) {
     body = `<div class="menu-empty">Add dishes to see the menu preview.</div>`;
   } else {
     const groups = groupByCategory(items, state.categories);
-    body = groups.map((g) => `
-      <div class="menu-section ${alignClass}">${escapeHtml(g.category.toUpperCase())}</div>
-      ${g.items.map((item) => {
+    const sectionLabels = opts.sectionLabels || {};
+    body = groups.map((g) => {
+      const label = Object.prototype.hasOwnProperty.call(sectionLabels, g.category) ? sectionLabels[g.category] : g.category.toUpperCase();
+      const dishesHtml = g.items.map((item) => {
         const idx = items.indexOf(item);
         return `<div class="menu-dish ${alignClass}">
           <span class="dname ${ucClass}" ${ce} data-idx="${idx}" data-field="name" data-placeholder="Dish name">${escapeHtml(item.name)}</span>
           <span class="dallergens" ${ce} data-idx="${idx}" data-field="allergens" data-placeholder="allergens">${escapeHtml(item.allergens)}</span>
           <span class="ddesc" ${ce} data-idx="${idx}" data-field="description" data-placeholder="Add a description…" style="${opts.italics ? "" : "font-style:normal;"}">${escapeHtml(item.description)}</span>
         </div>`;
-      }).join("")}
-    `).join("");
+      }).join("");
+      return `
+      <div class="menu-section ${alignClass}" ${ce} data-field="section" data-category="${escapeHtml(g.category)}" data-placeholder="(section name — click to restore)">${escapeHtml(label)}</div>
+      ${dishesHtml}
+    `;
+    }).join("");
   }
   return `
     <div class="menu-page">
@@ -737,7 +796,8 @@ async function saveCurrentMenu() {
   const total = b.canvas.reduce((s, i) => s + (Number(i.cost) || 0), 0);
   const payload = {
     name, items: b.canvas, titleText: b.titleText, alignment: b.alignment,
-    uppercase: b.uppercase, italics: b.italics, totalCost: total, updatedAt: Date.now(),
+    uppercase: b.uppercase, italics: b.italics, sectionLabels: b.sectionLabels || {},
+    totalCost: total, updatedAt: Date.now(),
   };
   if (b.activeMenuId) await db.collection("menus").doc(b.activeMenuId).set(payload);
   else {
@@ -773,7 +833,10 @@ async function exportDocx() {
     children.push(new Paragraph({ alignment: align, spacing: { after: 200 }, children: [new TextRun({ text: titleText || "MENU", bold: true, size: 44 })] }));
 
     groupByCategory(b.canvas, state.categories).forEach((g) => {
-      children.push(new Paragraph({ alignment: align, spacing: { before: 200, after: 80 }, children: [new TextRun({ text: g.category.toUpperCase(), bold: true, size: 26 })] }));
+      const label = Object.prototype.hasOwnProperty.call(b.sectionLabels || {}, g.category) ? b.sectionLabels[g.category] : g.category.toUpperCase();
+      if (label) {
+        children.push(new Paragraph({ alignment: align, spacing: { before: 200, after: 80 }, children: [new TextRun({ text: label, bold: true, size: 26 })] }));
+      }
       g.items.forEach((item) => {
         const name = b.uppercase ? item.name.toUpperCase() : item.name;
         const nameRuns = [new TextRun({ text: name, bold: true, size: 22 })];
@@ -839,7 +902,7 @@ async function exportDocx() {
 function exportPdf() {
   const b = state.builder;
   if (!b.canvas.length) { alert("Add at least one dish before exporting."); return; }
-  const html = buildMenuPageHTML(b.canvas, { alignment: b.alignment, uppercase: b.uppercase, italics: b.italics, titleText: b.titleText, editable: false });
+  const html = buildMenuPageHTML(b.canvas, { alignment: b.alignment, uppercase: b.uppercase, italics: b.italics, titleText: b.titleText, sectionLabels: b.sectionLabels, editable: false });
   document.getElementById("print-area").innerHTML = `<div class="menu-page-wrap">${html}</div>`;
   const prevTitle = document.title;
   document.title = sanitizeFilename(b.filename || b.titleText);
@@ -886,6 +949,7 @@ function loadMenu(id) {
     titleText: m.titleText || "MENU", alignment: m.alignment || "center",
     uppercase: !!m.uppercase, italics: !!m.italics,
     filename: sanitizeFilename(m.name), activeMenuId: m.id,
+    sectionLabels: { ...(m.sectionLabels || {}) },
   };
   switchView("builder");
 }
