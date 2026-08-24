@@ -33,6 +33,7 @@ const state = {
   pin: DEFAULT_PIN,
   dishes: [],
   menus: [],
+  priceBook: [],
   view: "vault",
   vaultSearch: "",
   vaultCatFilter: "all",
@@ -110,6 +111,7 @@ document.addEventListener("DOMContentLoaded", () => {
     listenConfig();
     listenDishes();
     listenMenus();
+    loadPriceBook();
     if (localStorage.getItem("menuette-unlocked") === "1") enterApp(); else showGate();
   }).catch((err) => {
     showStatus(connectionErrorMsg(err));
@@ -158,6 +160,19 @@ function listenMenus() {
       .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     if (state.view === "saved") renderSavedList();
   }, (err) => showStatus(connectionErrorMsg(err)));
+}
+async function loadPriceBook() {
+  try {
+    const snap = await db.collection("priceBook").orderBy("name").get();
+    state.priceBook = snap.docs.map((d) => d.data());
+    const dl = document.getElementById("ingredient-namelist");
+    if (dl) dl.innerHTML = state.priceBook.map((p) => `<option value="${escapeHtml(p.name)}">`).join("");
+  } catch (err) {
+    console.warn("Price book unavailable:", err.message);
+  }
+}
+function ingredientsTotal(ingredients) {
+  return (ingredients || []).reduce((sum, ing) => sum + (Number(ing.qty) || 0) * (Number(ing.unitPrice) || 0), 0);
 }
 function refreshCurrentView() {
   if (state.view === "vault") { renderVaultCatChips(); renderVaultList(); }
@@ -278,6 +293,7 @@ function renderVaultList() {
       </div>
       <div style="text-align:right;">
         <div class="dish-cost">${formatCurrency(d.cost)}</div>
+        <div class="dish-meta">${(d.ingredients || []).length} ingredient${(d.ingredients || []).length === 1 ? "" : "s"}</div>
         <div style="margin-top:8px;display:flex;gap:6px;">
           <button class="btn btn-ghost btn-sm" data-action="edit-dish" data-id="${d.id}">Edit</button>
           <button class="btn btn-danger btn-sm" data-action="delete-dish" data-id="${d.id}">Delete</button>
@@ -296,6 +312,13 @@ function renderVaultList() {
 function openDishModal(dish) {
   const isEdit = !!dish;
   const d = dish || { name: "", category: state.categories[0] || "", description: "", allergens: "", cost: 0 };
+  // Dishes migrated before the ingredient editor existed only have a flat
+  // `cost` number — seed one row from it so nothing is lost, and the user
+  // can break it down into real ingredients whenever they're ready.
+  const pendingIngredients = (d.ingredients && d.ingredients.length)
+    ? d.ingredients.map((i) => ({ ...i }))
+    : (d.cost ? [{ name: "(previous flat estimate)", qty: 1, unit: "portion", unitPrice: d.cost }] : []);
+
   openModal(`
     <h3>${isEdit ? "Edit Dish" : "Add Dish"}</h3>
     <input id="dm-name" class="field" placeholder="Dish name" value="${escapeHtml(d.name)}">
@@ -303,9 +326,18 @@ function openDishModal(dish) {
     <div id="dm-cats" class="cat-row"></div>
     <textarea id="dm-desc" class="field" placeholder="Description" rows="3">${escapeHtml(d.description)}</textarea>
     <input id="dm-allergens" class="field" placeholder="Allergens (e.g. Dairy, Gluten, Nuts)" value="${escapeHtml(d.allergens)}">
-    <input id="dm-cost" class="field" type="number" step="0.01" min="0" placeholder="Cost (${CURRENCY})" value="${d.cost || 0}">
-    <button id="dm-save" class="btn btn-primary btn-block">💾 Save Dish</button>
+
+    <div class="section-title">Ingredients &amp; Cost</div>
+    <div id="dm-ingredients"></div>
+    <button type="button" id="dm-add-ingredient" class="btn btn-outline btn-sm">＋ Add Ingredient</button>
+    <div class="cost-bar" style="margin-top:10px;">
+      <span>Total dish cost</span>
+      <span class="total" id="dm-total-cost">${formatCurrency(ingredientsTotal(pendingIngredients))}</span>
+    </div>
+
+    <button id="dm-save" class="btn btn-primary btn-block" style="margin-top:14px;">💾 Save Dish</button>
   `);
+
   let chosenCat = d.category;
   const catsWrap = document.getElementById("dm-cats");
   function renderCatChips() {
@@ -317,15 +349,79 @@ function openDishModal(dish) {
     });
   }
   renderCatChips();
+
+  const UNITS = ["kg", "g", "L", "ml", "unit", "portion"];
+  function renderIngredientRows() {
+    const wrap = document.getElementById("dm-ingredients");
+    wrap.innerHTML = pendingIngredients.map((ing, i) => `
+      <div class="ingredient-row" data-idx="${i}">
+        <input class="field ing-name" list="ingredient-namelist" placeholder="Ingredient" data-field="name" value="${escapeHtml(ing.name)}">
+        <input class="field ing-qty" type="number" step="0.001" min="0" placeholder="Qty" data-field="qty" value="${ing.qty}">
+        <select class="field ing-unit" data-field="unit">
+          ${UNITS.map((u) => `<option value="${u}" ${ing.unit === u ? "selected" : ""}>${u}</option>`).join("")}
+        </select>
+        <input class="field ing-price" type="number" step="0.01" min="0" placeholder="Price/unit" data-field="unitPrice" value="${ing.unitPrice}">
+        <span class="ing-total">${formatCurrency((Number(ing.qty) || 0) * (Number(ing.unitPrice) || 0))}</span>
+        <button type="button" class="btn btn-danger btn-sm" data-remove-ing="${i}">✕</button>
+      </div>
+    `).join("");
+
+    wrap.querySelectorAll(".ingredient-row").forEach((row) => {
+      const idx = Number(row.dataset.idx);
+      row.querySelectorAll("[data-field]").forEach((input) => {
+        input.addEventListener("input", () => {
+          pendingIngredients[idx][input.dataset.field] = input.value;
+          updateTotals();
+        });
+        if (input.dataset.field === "name") {
+          input.addEventListener("change", () => {
+            const match = state.priceBook.find((p) => p.name.toLowerCase() === input.value.trim().toLowerCase());
+            if (match && !Number(pendingIngredients[idx].unitPrice)) {
+              pendingIngredients[idx].unit = match.unit;
+              pendingIngredients[idx].unitPrice = match.unitPrice;
+              renderIngredientRows();
+            }
+          });
+        }
+      });
+    });
+    wrap.querySelectorAll("[data-remove-ing]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        pendingIngredients.splice(Number(btn.dataset.removeIng), 1);
+        renderIngredientRows();
+      });
+    });
+    updateTotals();
+  }
+  function updateTotals() {
+    document.querySelectorAll("#dm-ingredients .ingredient-row").forEach((row, i) => {
+      const ing = pendingIngredients[i];
+      row.querySelector(".ing-total").textContent = formatCurrency((Number(ing.qty) || 0) * (Number(ing.unitPrice) || 0));
+    });
+    document.getElementById("dm-total-cost").textContent = formatCurrency(ingredientsTotal(pendingIngredients));
+  }
+  renderIngredientRows();
+
+  document.getElementById("dm-add-ingredient").addEventListener("click", () => {
+    pendingIngredients.push({ name: "", qty: 1, unit: "kg", unitPrice: 0 });
+    renderIngredientRows();
+    const rows = document.querySelectorAll("#dm-ingredients .ing-name");
+    if (rows.length) rows[rows.length - 1].focus();
+  });
+
   document.getElementById("dm-save").addEventListener("click", async () => {
     const name = document.getElementById("dm-name").value.trim();
     if (!name) { document.getElementById("dm-name").focus(); return; }
+    const cleanIngredients = pendingIngredients
+      .filter((ing) => ing.name && ing.name.trim())
+      .map((ing) => ({ name: ing.name.trim(), qty: Number(ing.qty) || 0, unit: ing.unit || "unit", unitPrice: Number(ing.unitPrice) || 0 }));
     const payload = {
       name,
       category: chosenCat || "Uncategorized",
       description: document.getElementById("dm-desc").value.trim(),
       allergens: document.getElementById("dm-allergens").value.trim(),
-      cost: Number(document.getElementById("dm-cost").value) || 0,
+      ingredients: cleanIngredients,
+      cost: Math.round(ingredientsTotal(cleanIngredients) * 100) / 100,
     };
     if (isEdit) await db.collection("dishes").doc(dish.id).update(payload);
     else await db.collection("dishes").add(payload);
@@ -462,6 +558,16 @@ function renderBuilderShell() {
   document.getElementById("b-export-docx").addEventListener("click", exportDocx);
   document.getElementById("b-export-pdf").addEventListener("click", exportPdf);
 
+  const previewEl = document.getElementById("preview-wrap");
+  previewEl.addEventListener("input", handlePreviewInput);
+  previewEl.addEventListener("focusout", handlePreviewFocusOut);
+  previewEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && e.target.matches && e.target.matches('[contenteditable="true"]')) {
+      e.preventDefault();
+      e.target.blur();
+    }
+  });
+
   renderPickerCatChips();
   renderPickerList();
   renderCanvasAndPreview();
@@ -518,10 +624,9 @@ function removeFromCanvas(index) {
   renderPickerList();
   renderCanvasAndPreview();
 }
-function renderCanvasAndPreview() {
+function syncCanvasSummary() {
   const canvasEl = document.getElementById("canvas-list");
   const costEl = document.getElementById("cost-bar-wrap");
-  const previewEl = document.getElementById("preview-wrap");
   if (!canvasEl) return;
   const items = state.builder.canvas;
 
@@ -549,8 +654,13 @@ function renderCanvasAndPreview() {
     <div class="cost-bar"><span>Total menu cost</span><span class="total">${formatCurrency(total)}</span></div>
     ${items.length ? `<div class="cost-breakdown">${Object.entries(byCat).map(([c, v]) => `${escapeHtml(c)}: ${formatCurrency(v)}`).join(" · ")}</div>` : ""}
   `;
+}
 
-  previewEl.innerHTML = buildMenuPageHTML(items, {
+function renderCanvasAndPreview() {
+  syncCanvasSummary();
+  const previewEl = document.getElementById("preview-wrap");
+  if (!previewEl) return;
+  previewEl.innerHTML = buildMenuPageHTML(state.builder.canvas, {
     alignment: state.builder.alignment,
     uppercase: state.builder.uppercase,
     italics: state.builder.italics,
@@ -558,8 +668,36 @@ function renderCanvasAndPreview() {
   });
 }
 
+/* ---------------- Inline editing directly on the live preview ----------------
+   Typing updates state.builder.canvas / titleText immediately (so Save/Export
+   always see the latest text) but does NOT re-render the preview itself on
+   every keystroke — that would destroy cursor position mid-type. The canvas
+   card list and the external title field are resynced on focusout instead. */
+function handlePreviewInput(e) {
+  const el = e.target;
+  if (!el.matches || !el.matches('[contenteditable="true"]')) return;
+  const field = el.dataset.field;
+  const text = el.textContent;
+  if (field === "title") {
+    state.builder.titleText = text;
+  } else if (el.dataset.idx !== undefined) {
+    const idx = Number(el.dataset.idx);
+    if (state.builder.canvas[idx]) state.builder.canvas[idx][field] = text;
+  }
+}
+function handlePreviewFocusOut(e) {
+  const el = e.target;
+  if (!el.matches || !el.matches('[contenteditable="true"]')) return;
+  const titleInput = document.getElementById("b-title");
+  if (titleInput) titleInput.value = state.builder.titleText;
+  syncCanvasSummary();
+}
+
 function buildMenuPageHTML(items, opts) {
   const alignClass = opts.alignment === "left" ? "align-left" : "align-center";
+  const ucClass = opts.uppercase ? "uc" : "";
+  const editable = opts.editable !== false;
+  const ce = editable ? `contenteditable="true"` : "";
   let body;
   if (!items.length) {
     body = `<div class="menu-empty">Add dishes to see the menu preview.</div>`;
@@ -568,22 +706,21 @@ function buildMenuPageHTML(items, opts) {
     body = groups.map((g) => `
       <div class="menu-section ${alignClass}">${escapeHtml(g.category.toUpperCase())}</div>
       ${g.items.map((item) => {
-        const name = opts.uppercase ? item.name.toUpperCase() : item.name;
+        const idx = items.indexOf(item);
         return `<div class="menu-dish ${alignClass}">
-          <span class="dname">${escapeHtml(name)}</span>
-          ${item.allergens ? `<span class="dallergens"> [${escapeHtml(item.allergens)}]</span>` : ""}
-          ${item.description ? `<span class="ddesc" style="${opts.italics ? "" : "font-style:normal;"}">${escapeHtml(item.description)}</span>` : ""}
+          <span class="dname ${ucClass}" ${ce} data-idx="${idx}" data-field="name" data-placeholder="Dish name">${escapeHtml(item.name)}</span>
+          <span class="dallergens" ${ce} data-idx="${idx}" data-field="allergens" data-placeholder="allergens">${escapeHtml(item.allergens)}</span>
+          <span class="ddesc" ${ce} data-idx="${idx}" data-field="description" data-placeholder="Add a description…" style="${opts.italics ? "" : "font-style:normal;"}">${escapeHtml(item.description)}</span>
         </div>`;
       }).join("")}
     `).join("");
   }
-  const titleText = opts.uppercase ? opts.titleText.toUpperCase() : opts.titleText;
   return `
     <div class="menu-page">
       <div class="border-strip"></div>
       <div class="brand-logo"></div>
       <div class="menu-content">
-        <div class="menu-title ${alignClass}">${escapeHtml(titleText || "MENU")}</div>
+        <div class="menu-title ${alignClass} ${ucClass}" ${ce} data-field="title" data-placeholder="Menu title">${escapeHtml(opts.titleText || "")}</div>
         ${body}
       </div>
     </div>
@@ -702,7 +839,7 @@ async function exportDocx() {
 function exportPdf() {
   const b = state.builder;
   if (!b.canvas.length) { alert("Add at least one dish before exporting."); return; }
-  const html = buildMenuPageHTML(b.canvas, { alignment: b.alignment, uppercase: b.uppercase, italics: b.italics, titleText: b.titleText });
+  const html = buildMenuPageHTML(b.canvas, { alignment: b.alignment, uppercase: b.uppercase, italics: b.italics, titleText: b.titleText, editable: false });
   document.getElementById("print-area").innerHTML = `<div class="menu-page-wrap">${html}</div>`;
   const prevTitle = document.title;
   document.title = sanitizeFilename(b.filename || b.titleText);

@@ -223,9 +223,32 @@ textarea.field { resize: vertical; }
 .menu-page .menu-dish.align-left { text-align: left; }
 .menu-page .menu-dish.align-center { text-align: center; }
 .menu-page .menu-dish .dname { font-weight: 700; }
-.menu-page .menu-dish .dallergens { font-style: italic; font-size: 10px; color: var(--muted); }
+.menu-page .menu-dish .dallergens { font-style: italic; font-size: 10px; color: var(--muted); margin-left: 4px; }
+.menu-page .menu-dish .dallergens:not(:empty)::before { content: "["; }
+.menu-page .menu-dish .dallergens:not(:empty)::after { content: "]"; }
 .menu-page .menu-dish .ddesc { font-style: italic; font-size: 11px; color: var(--muted); margin-top: 2px; display: block; }
 .menu-page .menu-empty { color: var(--muted); font-size: 13px; text-align: center; padding: 40px 10px; }
+
+/* uppercase is a pure display transform — never bakes into the stored text,
+   so inline-editable spans always hold the real, mixed-case value */
+.uc { text-transform: uppercase; }
+
+/* ---------------- Editable live preview ---------------- */
+.menu-page [contenteditable="true"] {
+  cursor: text;
+  border-radius: 3px;
+  outline: none;
+  min-width: 12px;
+  display: inline-block;
+}
+.menu-page .ddesc[contenteditable="true"] { display: block; }
+.menu-page [contenteditable="true"]:hover { outline: 1px dashed var(--accent-tint); }
+.menu-page [contenteditable="true"]:focus { outline: 1px solid var(--accent); background: #fff8ec; }
+.menu-page [contenteditable="true"]:empty::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  opacity: 0.6;
+}
 
 /* ---------------- Print / PDF export ---------------- */
 #print-area { display: none; }
@@ -236,4 +259,15 @@ textarea.field { resize: vertical; }
   @page { size: 5.903in 8.271in; margin: 0; }
   .menu-page { box-shadow: none; width: 5.903in; min-height: 8.271in; }
   .menu-page-wrap { padding: 0; }
+  .menu-page [contenteditable] { outline: none !important; background: transparent !important; }
+  .menu-page [contenteditable]:empty::before { content: none !important; }
 }
+
+/* ---------------- Ingredient cost editor (Dish Vault modal) ---------------- */
+.ingredient-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.ingredient-row .field { margin-bottom: 0; }
+.ingredient-row .ing-name { flex: 2; min-width: 0; }
+.ingredient-row .ing-qty { width: 64px; flex: none; }
+.ingredient-row .ing-unit { width: 78px; flex: none; }
+.ingredient-row .ing-price { width: 90px; flex: none; }
+.ingredient-row .ing-total { width: 74px; flex: none; text-align: right; font-weight: 700; font-size: 13px; color: var(--accent-soft); }
