@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Menuette — Chef's Studio</title>
 <link rel="stylesheet" href="style.css">
 </head>
@@ -15,11 +15,11 @@
 <div id="gate-screen">
   <div class="center-screen">
     <div class="panel-card">
-      <div class="brand-mark">🍽️ Menuette</div>
+      <div class="brand-mark">Menuette</div>
       <div class="brand-sub">CHEF'S STUDIO</div>
       <input id="gate-pin" class="field" placeholder="Access code" type="password" inputmode="numeric" autocomplete="off">
       <div id="gate-error" class="error-text"></div>
-      <button id="gate-unlock-btn" class="btn btn-gold btn-block">🔒 Unlock</button>
+      <button id="gate-unlock-btn" class="btn btn-primary btn-block">Unlock</button>
       <div class="hint-text">Ask whoever set up Menuette for the access code.</div>
     </div>
   </div>
@@ -27,37 +27,41 @@
 
 <!-- ============================== Main app ============================== -->
 <div id="app-shell" class="hidden">
-  <div id="app-header">
-    <div class="header-row">
-      <div>
-        <div class="header-title">🍽️ Menuette</div>
-        <div class="header-sub">CHEF'S STUDIO</div>
-      </div>
-      <div class="header-right">
-        <span class="pill-btn" id="dish-count-pill">0 dishes</span>
-        <button id="lock-btn" class="pill-btn" title="Lock">⇦ Lock</button>
-      </div>
-    </div>
-    <div class="nav-tabs">
-      <button class="nav-tab active" data-view="vault">🗄️ Dish Vault</button>
-      <button class="nav-tab" data-view="builder">📝 Menu Builder</button>
-      <button class="nav-tab" data-view="saved">📚 Saved Menus</button>
-      <button class="nav-tab" data-view="import">📥 Import Menu</button>
-      <button class="nav-tab" data-view="prep">🧾 Prep Vault</button>
-      <button class="nav-tab" data-view="buffet">🍱 Buffet Menus</button>
-      <button class="nav-tab" data-view="canape">📸 Canapé Menu</button>
-    </div>
-  </div>
 
-  <div id="app-body">
-    <div id="view-vault"></div>
-    <div id="view-builder" class="hidden"></div>
-    <div id="view-saved" class="hidden"></div>
-    <div id="view-import" class="hidden"></div>
-    <div id="view-prep" class="hidden"></div>
+  <aside id="sidebar">
+    <div class="sb-brand">
+      <div class="sb-brand-name">Menuette</div>
+      <div class="sb-brand-sub">CHEF'S STUDIO</div>
+    </div>
+
+    <div class="sb-group-label">Menu Studios</div>
+    <nav class="sb-nav">
+      <button class="sb-item active" data-view="ddr"><span class="sb-ico">🍽️</span><span>DDR Menus</span></button>
+      <button class="sb-item" data-view="buffet"><span class="sb-ico">🍱</span><span>Buffet Menus</span></button>
+      <button class="sb-item" data-view="canape"><span class="sb-ico">🥂</span><span>Canapé Menus</span></button>
+    </nav>
+
+    <div class="sb-group-label">Kitchen</div>
+    <nav class="sb-nav">
+      <button class="sb-item" data-view="prep"><span class="sb-ico">🧾</span><span>Prep Vault</span><span class="sb-count" id="sb-prep-count"></span></button>
+      <button class="sb-item" data-view="saved"><span class="sb-ico">📚</span><span>Saved Menus</span><span class="sb-count" id="sb-saved-count"></span></button>
+      <button class="sb-item" data-view="import"><span class="sb-ico">📥</span><span>Import Menu</span></button>
+    </nav>
+
+    <div class="sb-foot">
+      <div class="sb-stat"><span id="sb-dish-total">0</span> dishes in vault</div>
+      <button id="lock-btn" class="btn btn-ghost btn-sm btn-block">Lock studio</button>
+    </div>
+  </aside>
+
+  <main id="app-body">
+    <div id="view-ddr"></div>
     <div id="view-buffet" class="hidden"></div>
     <div id="view-canape" class="hidden"></div>
-  </div>
+    <div id="view-prep" class="hidden"></div>
+    <div id="view-saved" class="hidden"></div>
+    <div id="view-import" class="hidden"></div>
+  </main>
 </div>
 
 <!-- ============================== Modal ============================== -->
@@ -65,11 +69,11 @@
   <div id="modal-card" class="modal-card"></div>
 </div>
 
-<!-- ============================== Hidden print target (PDF export) ============================== -->
-<div id="print-area"></div>
+<!-- ============================== Toast ============================== -->
+<div id="toast" class="hidden"></div>
 
-<!-- Ingredient name autocomplete, populated from the priceBook collection -->
-<datalist id="ingredient-namelist"></datalist>
+<!-- ============================== Hidden print target ============================== -->
+<div id="print-area"></div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -80,6 +84,10 @@
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="firebase-config.js"></script>
 <script src="data/default-categories.js"></script>
+<!-- app.js defines the shared state the other three read, so it must load first -->
 <script src="app.js"></script>
+<script src="studio.js"></script>
+<script src="prep.js"></script>
+<script src="pages.js"></script>
 </body>
 </html>
