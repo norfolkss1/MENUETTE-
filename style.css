@@ -172,7 +172,7 @@ textarea.field { resize: vertical; }
   position: relative;
   width: 5.903in;
   min-height: 8.271in;
-  background: #fff;
+  background: #FEFBF6;
   box-shadow: 0 8px 30px -12px rgba(40,20,10,0.35);
   overflow: hidden;
   font-family: var(--font-body);
@@ -203,23 +203,30 @@ textarea.field { resize: vertical; }
 .menu-page .menu-title {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 21px;
-  letter-spacing: 1px;
-  margin-bottom: 18px;
+  font-size: 22px;
+  letter-spacing: 1.5px;
+  margin-bottom: 4px;
 }
 .menu-page .menu-title.align-left { text-align: left; }
 .menu-page .menu-title.align-center { text-align: center; }
+.menu-page .menu-title-rule {
+  width: 46px; height: 2px; background: var(--accent-soft); opacity: 0.55;
+  margin: 10px 0 20px;
+}
+.menu-page .menu-title-rule.align-center { margin-left: auto; margin-right: auto; }
 .menu-page .menu-section-row {
   position: relative;
-  margin: 16px 0 6px;
+  margin: 20px 0 10px;
   min-height: 20px;
 }
 .menu-page .menu-section {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 13px;
-  letter-spacing: 1.5px;
+  font-size: 12.5px;
+  letter-spacing: 2px;
   color: var(--accent-soft);
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--border);
 }
 .menu-page .menu-section-row.align-center .menu-section { text-align: center; }
 .menu-page .menu-section-row.align-left .menu-section { text-align: left; }
@@ -262,6 +269,28 @@ textarea.field { resize: vertical; }
 .menu-page .menu-dish .dallergens:not(:empty)::after { content: "]"; }
 .menu-page .menu-dish .ddesc { font-style: italic; font-size: 11px; color: var(--muted); margin-top: 2px; display: block; }
 .menu-page .menu-empty { color: var(--muted); font-size: 13px; text-align: center; padding: 40px 10px; }
+.menu-page .allergen-legend {
+  position: absolute;
+  left: 1.08in; right: 0.32in; bottom: 1.05in;
+  font-size: 8.5px;
+  letter-spacing: 0.4px;
+  color: var(--muted);
+  text-align: center;
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+}
+
+/* ---------------- Canapé photo blocks (shared .menu-page template) ---------------- */
+.menu-page .canape-block { margin-bottom: 26px; }
+.menu-page .canape-photo {
+  width: 2.7in;
+  height: 2in;
+  margin: 0 auto;
+  background-size: cover;
+  background-position: center;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
 
 /* uppercase is a pure display transform — never bakes into the stored text,
    so inline-editable spans always hold the real, mixed-case value */
@@ -304,6 +333,10 @@ textarea.field { resize: vertical; }
   .menu-page [contenteditable] { outline: none !important; background: transparent !important; }
   .menu-page [contenteditable]:empty::before { content: none !important; }
   .menu-page .section-move-col { display: none !important; }
+  /* Multi-page documents (Buffet, Canapé) stack several .menu-page divs in
+     #print-area — force each onto its own physical printed page. */
+  .menu-page { page-break-after: always; }
+  .menu-page:last-of-type { page-break-after: auto; }
 }
 
 /* ---------------- Ingredient cost editor (Dish Vault modal) ---------------- */

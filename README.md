@@ -145,6 +145,41 @@ assets/me-dubai-logo.png   the "ME DUBAI" logo from Sample.docx
   auto-detected (whole-line bold = dish name in Word docs; ALL-CAPS/Title-Case
   short lines in PDFs), with a review screen to fix anything before it's added
   to the vault.
+- **Prep List** (optional, per dish) — any dish (à la carte or Canapé) can
+  have a simple ordered checklist of prep/mise-en-place items, added from its
+  Edit screen — genuinely optional, most dishes have none. **Prep Vault** is a
+  dedicated tab listing every dish that has one, searchable. In Menu Builder
+  (and Canapé Menu), **"🧾 Generate Prep List"** compiles the prep lists of
+  every dish currently on the menu that has one — skipping the rest — into
+  its own plain, functional checklist document (not the decorative branded
+  menu look, since this is a kitchen work document), exportable as its own
+  Word/PDF.
+- **Buffet Menus** — a separate tab for station-based buffet menus (Ramadan,
+  Brunch, Christmas, Omniyat pre-loaded from your real menus). Each menu is
+  a list of stations (e.g. "Charcuterie & Cheese Station"), each with a list
+  of items; the Ramadan menu additionally has day-tabs (7 days), since it's a
+  weekly rotation. Add/remove/reorder stations and items freely. Because
+  these run much longer than an à la carte menu, the live preview and every
+  export **automatically flow across as many branded pages as the content
+  needs** — a pagination engine measures the real rendered height of every
+  station and packs pages accordingly (never splitting a station's items
+  across two pages unless the station alone is longer than one page), so it
+  stays correct even if you edit the page design later.
+- **Canapé Menu** — a photo-card grid for canapé-style items (15 real dishes
+  pre-loaded, extracted with their actual photos from the source PDF). Each
+  card is a dish with a photo, name, allergens, description, the same
+  itemized cost/ingredients as the Dish Vault, and its own optional prep
+  list. Photos are stored as compressed images embedded directly in the
+  database (resized to ~600px, JPEG ~70% quality) rather than a separate
+  file-hosting service, since Firebase Storage isn't set up on this project —
+  fine at this scale (~15–30 photos), but if you outgrow it later, moving to
+  Firebase Storage is the natural next step (see README history / ask for
+  help). Live preview and export reuse the same multi-page pagination engine
+  as Buffet Menus, with the photo embedded in both the PDF snapshot and the
+  real `.docx` export.
+- **Allergen legend** — every branded page (à la carte, Buffet, Canapé) ends
+  with a fixed "Allergens: D — Dairy · G — Gluten · S — Seafood" line, in
+  the live preview, PDF, print, and Word export alike.
 
 ## Changing the design later
 
