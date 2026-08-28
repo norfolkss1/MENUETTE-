@@ -2,38 +2,55 @@
 
 /* ==========================================================================
    MENUETTE — design tokens
-   Warm, restrained hotel palette: espresso ink, sand paper, a single copper
-   accent. One accent colour only, so the branded menu page on the right is
-   always the most colourful thing on screen.
+
+   Two palettes, deliberately separate:
+
+   · The APP palette is bright and cool-neutral — crisp white panels on a light
+     stone ground, a fresh copper accent, real contrast in the text. This is a
+     tool that gets used under kitchen-office lighting all day.
+   · The PAGE palette (--page-*) is the ME Dubai brand: warm sand, espresso ink,
+     copper headings. It is used ONLY inside .menu-page, so refreshing the app
+     never changes what comes out of the printer.
    ========================================================================== */
 :root {
-  --bg:            #F2EEE8;
+  /* --- app chrome --- */
+  --bg:            #EFF1F2;
   --panel:         #FFFFFF;
-  --panel-2:       #FAF6F0;
-  --panel-3:       #F5F0E8;
-  --border:        #E4DACB;
-  --border-strong: #D3C4AE;
+  --panel-2:       #F7F9F9;
+  --panel-3:       #EAEEEF;
+  --border:        #DDE3E4;
+  --border-strong: #C2CBCD;
 
-  --accent:        #8B4513;
-  --accent-soft:   #A0522D;
-  --accent-tint:   #8B45130F;
-  --accent-tint-2: #8B45131F;
+  --accent:        #B4541A;
+  --accent-hover:  #97440F;
+  --accent-soft:   #C4601F;
+  --accent-tint:   #B4541A12;
+  --accent-tint-2: #B4541A26;
 
-  --ink:           #241812;
-  --ink-2:         #4A3628;
-  --muted:         #8A7561;
-  --muted-2:       #A79581;
+  --ink:           #16191A;
+  --ink-2:         #3D4547;
+  --muted:         #667072;
+  --muted-2:       #8B9698;
 
-  --danger:        #B02A1B;
-  --danger-tint:   #B02A1B12;
-  --good:          #2F7A4F;
-  --warn:          #9A6B14;
-  --warn-tint:     #C2932412;
+  --danger:        #C02A17;
+  --danger-tint:   #C02A1714;
+  --good:          #17795A;
+  --good-tint:     #17795A14;
+  --warn:          #96650A;
+  --warn-tint:     #B57E1014;
 
-  --sb-bg:         #211511;
-  --sb-bg-2:       #2E1E17;
-  --sb-ink:        #EFE4D6;
-  --sb-muted:      #A99180;
+  --sb-bg:         #17201F;
+  --sb-bg-2:       #222E2C;
+  --sb-ink:        #F1F5F4;
+  --sb-muted:      #93A29F;
+  --sb-dim:        #6B7A77;
+
+  /* --- ME Dubai printed page (do not "freshen" — this is the brand) --- */
+  --page-ink:      #2C1A12;
+  --page-accent:   #A0522D;
+  --page-muted:    #8B6A4A;
+  --page-border:   #E8D9C5;
+  --page-paper:    #FEFBF6;
 
   --font-display: "Playfair Display", Georgia, serif;
   --font-body:    "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -42,9 +59,9 @@
   --r:    12px;
   --r-lg: 16px;
 
-  --shadow-sm: 0 1px 2px rgba(36,24,18,.06), 0 1px 3px rgba(36,24,18,.05);
-  --shadow:    0 4px 14px -6px rgba(36,24,18,.18);
-  --shadow-lg: 0 18px 44px -20px rgba(36,24,18,.42);
+  --shadow-sm: 0 1px 2px rgba(20,30,30,.05), 0 1px 3px rgba(20,30,30,.05);
+  --shadow:    0 4px 14px -6px rgba(20,30,30,.16);
+  --shadow-lg: 0 18px 44px -20px rgba(20,30,30,.34);
 
   --rail-w: 366px;
   --sb-w:   232px;
@@ -69,16 +86,16 @@ b { font-weight: 600; }
 
 ::-webkit-scrollbar { width: 11px; height: 11px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #C9BAA5; border-radius: 8px; border: 3px solid transparent; background-clip: content-box; }
-::-webkit-scrollbar-thumb:hover { background: #B3A18A; background-clip: content-box; }
+::-webkit-scrollbar-thumb { background: #BCC6C8; border-radius: 8px; border: 3px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: #A3AFB1; background-clip: content-box; }
 
 /* ---------------- Status banner + toast ---------------- */
 #status-banner {
   position: fixed; top: 0; left: 0; right: 0; z-index: 400;
-  background: #FFF3EC; color: #8F2015; border-bottom: 1px solid #E6B9A8;
+  background: #FEF0EC; color: #98261A; border-bottom: 1px solid #F0C3B8;
   padding: 11px 16px; font-size: 13px; line-height: 1.5; text-align: center;
 }
-#status-banner.info { background: #EEF4EE; color: var(--good); border-bottom-color: #C7DDC9; }
+#status-banner.info { background: #EAF5F1; color: var(--good); border-bottom-color: #BEDFD3; }
 
 #toast {
   position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
@@ -127,12 +144,12 @@ select.field { cursor: pointer; }
 }
 .btn:disabled { opacity: .45; cursor: default; }
 .btn-primary { background: var(--accent); color: #fff; }
-.btn-primary:hover:not(:disabled) { background: #74390F; }
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
 .btn-outline { background: var(--panel); border-color: var(--border-strong); color: var(--accent-soft); }
 .btn-outline:hover:not(:disabled) { background: var(--accent-tint); border-color: var(--accent); }
 .btn-ghost { background: transparent; border-color: var(--border); color: var(--muted); }
 .btn-ghost:hover:not(:disabled) { background: var(--panel-3); color: var(--ink-2); }
-.btn-danger { background: var(--panel); border-color: #E3B7B1; color: var(--danger); }
+.btn-danger { background: var(--panel); border-color: #E9BDB6; color: var(--danger); }
 .btn-danger:hover:not(:disabled) { background: var(--danger-tint); }
 .btn-block { width: 100%; }
 .btn-sm { padding: 6px 11px; min-height: 32px; font-size: 12.5px; }
@@ -145,7 +162,7 @@ select.field { cursor: pointer; }
 }
 .icon-btn:hover:not(:disabled) { background: var(--accent-tint); border-color: var(--accent); color: var(--accent-soft); }
 .icon-btn:disabled { opacity: .3; cursor: default; }
-.icon-btn-danger:hover:not(:disabled) { background: var(--danger-tint); border-color: #E3B7B1; color: var(--danger); }
+.icon-btn-danger:hover:not(:disabled) { background: var(--danger-tint); border-color: #E9BDB6; color: var(--danger); }
 
 .link-btn {
   background: none; border: none; padding: 0; cursor: pointer;
@@ -170,7 +187,7 @@ select.field { cursor: pointer; }
 
 .sb-group-label {
   font-size: 9.5px; letter-spacing: 1.6px; text-transform: uppercase;
-  color: #7A6353; padding: 16px 8px 7px; font-weight: 700;
+  color: var(--sb-dim); padding: 16px 8px 7px; font-weight: 700;
 }
 .sb-nav { display: flex; flex-direction: column; gap: 2px; }
 .sb-item {
@@ -184,14 +201,14 @@ select.field { cursor: pointer; }
 .sb-item.active { background: var(--sb-bg-2); color: var(--sb-ink); box-shadow: inset 2px 0 0 var(--accent-soft); font-weight: 600; }
 .sb-ico { font-size: 15px; width: 18px; text-align: center; flex: none; }
 .sb-count {
-  margin-left: auto; font-size: 11px; font-weight: 700; color: #7A6353;
+  margin-left: auto; font-size: 11px; font-weight: 700; color: var(--sb-dim);
   background: #FFFFFF0F; padding: 1px 7px; border-radius: 999px; min-width: 20px; text-align: center;
 }
 .sb-item.active .sb-count { color: var(--sb-ink); }
 .sb-count:empty { display: none; }
 
 .sb-foot { margin-top: auto; padding-top: 18px; border-top: 1px solid #FFFFFF14; }
-.sb-stat { font-size: 11.5px; color: #7A6353; padding: 0 8px 10px; }
+.sb-stat { font-size: 11.5px; color: var(--sb-dim); padding: 0 8px 10px; }
 .sb-stat span { color: var(--sb-ink); font-weight: 700; }
 #sidebar .btn-ghost { border-color: #FFFFFF1F; color: var(--sb-muted); }
 #sidebar .btn-ghost:hover { background: #FFFFFF12; color: var(--sb-ink); }
@@ -296,8 +313,31 @@ select.field { cursor: pointer; }
   font-size: 10.5px; font-weight: 600; letter-spacing: .2px; white-space: nowrap;
 }
 .badge-quiet { background: transparent; border: 1px solid var(--border); color: var(--muted); }
-.badge-prep { background: #E9F1EA; color: var(--good); }
+.badge-prep { background: var(--good-tint); color: var(--good); }
 .badge-warn { background: var(--warn-tint); color: var(--warn); }
+
+/* ---------------- Ready-made station blocks (Buffet library) ---------------- */
+.seg-tabs-sm { margin-bottom: 12px; width: 100%; }
+.seg-tabs-sm .seg { flex: 1; padding: 6px 10px; font-size: 12.5px; }
+
+.station-card {
+  border: 1px solid var(--border); border-radius: var(--r); background: var(--panel);
+  padding: 11px 12px; transition: border-color .12s;
+}
+.station-card:hover { border-color: var(--border-strong); }
+.station-card.is-added { background: var(--panel-2); }
+.station-card > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.station-name { font-weight: 700; font-size: 13px; letter-spacing: .3px; color: var(--ink); }
+.station-meta { display: flex; align-items: center; gap: 7px; margin-top: 5px; flex-wrap: wrap; }
+.station-source { font-size: 11.5px; color: var(--muted-2); }
+.station-items { margin: 9px 0 0; padding-left: 0; list-style: none; }
+.station-items li {
+  font-size: 12px; color: var(--ink-2); padding: 2px 0 2px 14px; position: relative; line-height: 1.4;
+}
+.station-items li::before {
+  content: ""; position: absolute; left: 3px; top: 9px;
+  width: 4px; height: 4px; border-radius: 50%; background: var(--accent); opacity: .45;
+}
 
 /* ---------------- Canvas pane ---------------- */
 .canvas-group { margin-bottom: 14px; }
@@ -356,11 +396,11 @@ select.field { cursor: pointer; }
   position: relative;
   width: 5.903in;
   min-height: 8.271in;
-  background: #FEFBF6;
+  background: var(--page-paper);
   box-shadow: var(--shadow-lg);
   overflow: hidden;
   font-family: var(--font-body);
-  color: var(--ink);
+  color: var(--page-ink);
 }
 
 /* --- sand theme (DDR + Buffet): swirl strip down the left margin --- */
@@ -385,16 +425,26 @@ select.field { cursor: pointer; }
   position: absolute; inset: 0;
   background: linear-gradient(180deg, #FFFFFF7D 0%, #FFFFFF47 42%, #FFFFFF8C 100%);
 }
-.menu-page.theme-marble .menu-content { padding: 0.62in 0.6in 1.05in 0.6in; }
-.menu-page.theme-marble .allergen-legend { left: 0.6in; right: 0.6in; color: #6B6B6B; border-top-color: #0000001A; }
+/* The marble page carries a shorter footer than the sand template — a smaller,
+   centred mark instead of the corner logo — which is what buys the third
+   canapé card its room on the page. */
+.menu-page.theme-marble .menu-content { padding: 0.46in 0.6in 0.9in 0.6in; }
+.menu-page.theme-marble .allergen-legend { left: 0.6in; right: 0.6in; bottom: 1.02in; color: #6B6B6B; border-top-color: #0000001A; }
+/* A tighter title block on the stone — the room it gives back is what lets a
+   third canapé card onto the page without shrinking the ME mark below the size
+   its hairline "DUBAI" lettering survives. */
+.menu-page.theme-marble .menu-title { font-size: 20px; }
+.menu-page.theme-marble .menu-title-rule { margin: 8px 0 14px; }
 .menu-page.theme-marble .menu-section { color: #1C1C1C; border-bottom-color: #00000021; }
 .menu-page.theme-marble .menu-title-rule { background: #1C1C1C; opacity: .35; }
 .menu-page.theme-marble .ddesc { color: #4A4A4A; }
 .menu-page.theme-marble .dallergens { color: #6B6B6B; }
-/* The printed canapé book centres the ME mark on the stone rather than
-   tucking it into the right margin the way the sand template does.
-   Keep this in step with the logo offset used by the .docx export. */
-.menu-page.theme-marble .brand-logo { left: 2.5175in; }
+/* The printed canapé book centres the ME mark on the stone rather than tucking
+   it into the right margin the way the sand template does. Keep these in step
+   with MARBLE_LOGO in studio.js, which the .docx export is built from. */
+.menu-page.theme-marble .brand-logo {
+  left: 2.5175in; bottom: 0.30in;
+}
 
 .menu-page .brand-logo {
   position: absolute;
@@ -412,7 +462,7 @@ select.field { cursor: pointer; }
 .menu-page .menu-title.align-left { text-align: left; }
 .menu-page .menu-title.align-center { text-align: center; }
 .menu-page .menu-title-rule {
-  width: 46px; height: 2px; background: var(--accent-soft); opacity: .55; margin: 10px 0 20px;
+  width: 46px; height: 2px; background: var(--page-accent); opacity: .55; margin: 10px 0 20px;
 }
 .menu-page .menu-title-rule.align-center { margin-left: auto; margin-right: auto; }
 .menu-page .menu-title-rule.continued { opacity: 0; margin: 0 0 6px; height: 1px; }
@@ -420,8 +470,8 @@ select.field { cursor: pointer; }
 .menu-page .menu-section-row { position: relative; margin: 20px 0 10px; min-height: 20px; }
 .menu-page .menu-section {
   font-family: var(--font-display); font-weight: 700; font-size: 12.5px;
-  letter-spacing: 2px; color: var(--accent-soft);
-  padding-bottom: 5px; border-bottom: 1px solid var(--border);
+  letter-spacing: 2px; color: var(--page-accent);
+  padding-bottom: 5px; border-bottom: 1px solid var(--page-border);
 }
 .menu-page .menu-section-row.align-center .menu-section { text-align: center; }
 .menu-page .menu-section-row.align-left .menu-section { text-align: left; }
@@ -435,28 +485,28 @@ select.field { cursor: pointer; }
 }
 .menu-page:hover .section-move-col { opacity: 1; }
 .menu-page .section-move-btn {
-  border: none; background: #FFFFFFE6; color: var(--muted); cursor: pointer;
+  border: none; background: #FFFFFFE6; color: var(--page-muted); cursor: pointer;
   font-size: 9px; line-height: 1; width: 22px; height: 18px;
   display: flex; align-items: center; justify-content: center; border-radius: 4px;
   box-shadow: var(--shadow-sm);
 }
-.menu-page .section-move-btn:hover { background: var(--accent); color: #fff; }
+.menu-page .section-move-btn:hover { background: var(--page-accent); color: #fff; }
 .menu-page .section-move-btn:disabled { opacity: .25; cursor: default; }
 
 .menu-page .menu-dish { font-size: 12.5px; margin-top: 8px; position: relative; }
 .menu-page .menu-dish.align-left { text-align: left; }
 .menu-page .menu-dish.align-center { text-align: center; }
 .menu-page .dname { font-weight: 700; }
-.menu-page .dallergens { font-style: italic; font-size: 10px; color: var(--muted); margin-left: 4px; }
+.menu-page .dallergens { font-style: italic; font-size: 10px; color: var(--page-muted); margin-left: 4px; }
 .menu-page .dallergens:not(:empty)::before { content: "["; }
 .menu-page .dallergens:not(:empty)::after { content: "]"; }
-.menu-page .ddesc { font-style: italic; font-size: 11px; color: var(--muted); margin-top: 2px; display: block; }
-.menu-page .menu-empty { color: var(--muted); font-size: 13px; text-align: center; padding: 40px 10px; }
+.menu-page .ddesc { font-style: italic; font-size: 11px; color: var(--page-muted); margin-top: 2px; display: block; }
+.menu-page .menu-empty { color: var(--page-muted); font-size: 13px; text-align: center; padding: 40px 10px; }
 
 /* Remove-from-menu control, revealed on hover over its own dish */
 .menu-page .dish-drop {
   position: absolute; top: 0; right: -4px;
-  border: none; background: #FFFFFFE6; color: var(--muted);
+  border: none; background: #FFFFFFE6; color: var(--page-muted);
   width: 18px; height: 18px; border-radius: 4px; cursor: pointer;
   font-size: 9px; line-height: 1; display: flex; align-items: center; justify-content: center;
   opacity: 0; transition: opacity .12s; box-shadow: var(--shadow-sm); z-index: 3;
@@ -466,37 +516,44 @@ select.field { cursor: pointer; }
 
 .menu-page .allergen-legend {
   position: absolute; bottom: 1.05in;
-  font-size: 8.5px; letter-spacing: .4px; color: var(--muted); text-align: center;
-  border-top: 1px solid var(--border); padding-top: 6px; z-index: 2;
+  font-size: 8.5px; letter-spacing: .4px; color: var(--page-muted); text-align: center;
+  border-top: 1px solid var(--page-border); padding-top: 6px; z-index: 2;
 }
 /* Bottom-left, clear of both logo positions (sand tucks its mark to the right,
    marble centres it). */
 .menu-page .page-number {
   position: absolute; bottom: 0.36in; left: 0.62in;
-  font-size: 8px; letter-spacing: 1px; color: var(--muted-2); z-index: 2;
+  font-size: 8px; letter-spacing: 1px; color: var(--page-muted); z-index: 2;
 }
 .menu-page.theme-sand .page-number { left: 1.08in; }
 
-/* ---------------- Canapé photo cards ---------------- */
-/* Each grid holds one row of cards — pagination splits between rows, so a row
-   is its own element and the vertical rhythm comes from the margin, not a gap. */
-.menu-page .canape-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; margin-bottom: 14px; }
-.menu-page .canape-card { position: relative; }
-/* The photos are cutouts on a stone-white ground that matches the washed
-   marble, so they read as plates sitting on the page rather than as pasted-in
-   grey tiles. `contain` keeps every plate whole whatever its shape — no tile
-   background or shadow, or the padding around a tall shot would box it in. */
-.menu-page .canape-photo {
-  width: 100%; height: 1.2in;
-  background: transparent center/contain no-repeat;
-  margin-bottom: 7px;
+/* ---------------- Canapé photo cards ----------------
+   Three to a page, one per row: plate on the left at a size worth looking at,
+   name and description set beside it. Each card is its own element because
+   pagination splits between cards, so the vertical rhythm comes from the
+   margin rather than a grid gap.
+
+   The photos are transparent cutouts, exactly as they are in the printed
+   canapé book — no tile, no plate-coloured backing, so the marble of the page
+   itself shows through and around them. `contain` keeps every plate whole
+   whatever its shape, from a wide board to a tall cone. */
+.menu-page .canape-grid { display: block; margin-bottom: 0.2in; }
+.menu-page .canape-card {
+  position: relative;
+  display: grid; grid-template-columns: 2.35in 1fr; gap: 0 0.18in; align-items: center;
 }
-.menu-page .canape-text { font-size: 11px; line-height: 1.35; }
-.menu-page .canape-card.align-center .canape-text { text-align: center; }
-.menu-page .canape-card.align-left .canape-text { text-align: left; }
-.menu-page .canape-card .dname { font-size: 11px; letter-spacing: .3px; }
-.menu-page .canape-card .ddesc { font-size: 9.5px; margin-top: 3px; }
-.menu-page .canape-card .dallergens { font-size: 9px; }
+/* Plates are pushed to the inside edge of their column and captions start at
+   the inside edge of theirs, so however differently shaped the photos are —
+   a wide board next to a tall cone — every card shares one straight gutter
+   down the middle of the page instead of drifting apart. */
+.menu-page .canape-photo {
+  width: 100%; height: 1.72in;
+  background: transparent right center/contain no-repeat;
+}
+.menu-page .canape-text { font-size: 12px; line-height: 1.4; text-align: left; }
+.menu-page .canape-card .dname { font-size: 12px; letter-spacing: .4px; }
+.menu-page .canape-card .ddesc { font-size: 10.5px; margin-top: 4px; }
+.menu-page .canape-card .dallergens { font-size: 9.5px; }
 
 /* uppercase is a pure display transform — it never bakes into stored text, so
    the inline-editable spans always hold the real, mixed-case value */
@@ -517,7 +574,7 @@ select.field { cursor: pointer; }
 .menu-page .menu-title[contenteditable="true"],
 .menu-page .menu-section[contenteditable="true"] { display: block; }
 .menu-page [contenteditable="true"]:hover { background: #8B451308; }
-.menu-page [contenteditable="true"]:focus { outline: 1px solid var(--accent); background: #FFF8EC; }
+.menu-page [contenteditable="true"]:focus { outline: 1px solid var(--page-accent); background: #FFF8EC; }
 
 .menu-page [contenteditable="true"]:empty { position: relative; }
 .menu-page .ddesc[contenteditable="true"]:empty { display: block; height: 0; }
@@ -530,7 +587,7 @@ select.field { cursor: pointer; }
   border-bottom: 1px dashed transparent;
 }
 .menu-page:hover [contenteditable="true"]:empty::after { border-bottom-color: #8B451340; }
-.menu-page [contenteditable="true"]:focus:empty::before { content: attr(data-placeholder); color: var(--muted); opacity: .5; }
+.menu-page [contenteditable="true"]:focus:empty::before { content: attr(data-placeholder); color: var(--page-muted); opacity: .5; }
 
 /* ==========================================================================
    Prep Vault + Saved menus
@@ -586,17 +643,17 @@ select.field { cursor: pointer; }
   max-height: 46vh; overflow-y: auto; border: 1px solid var(--border);
   border-radius: var(--r); padding: 22px; background: #fff; margin-top: 12px;
 }
-.prep-doc { font-family: var(--font-body); color: #2C1A12; }
+.prep-doc { font-family: var(--font-body); color: var(--page-ink); }
 .prep-doc-title { font-family: var(--font-display); font-size: 21px; font-weight: 700; letter-spacing: 1px; }
-.prep-doc-sub { font-size: 12.5px; color: #8B6A4A; margin: 3px 0 20px; }
+.prep-doc-sub { font-size: 12.5px; color: var(--page-muted); margin: 3px 0 20px; }
 .prep-doc-block { margin-bottom: 16px; break-inside: avoid; }
 .prep-doc-dish {
   font-weight: 700; font-size: 13.5px; margin-bottom: 6px;
-  border-bottom: 1px solid #E8D9C5; padding-bottom: 3px; letter-spacing: .3px;
+  border-bottom: 1px solid var(--page-border); padding-bottom: 3px; letter-spacing: .3px;
 }
 .prep-doc-block ul { margin: 0; padding-left: 0; list-style: none; }
 .prep-doc-block li { font-size: 12.5px; color: #3D2B1F; margin-bottom: 5px; display: flex; align-items: center; gap: 8px; }
-.prep-doc-block .tick { width: 10px; height: 10px; border: 1px solid #B9A88F; border-radius: 2px; flex: none; }
+.prep-doc-block .tick { width: 10px; height: 10px; border: 1px solid #BCA98E; border-radius: 2px; flex: none; }
 
 /* ---------------- Import ---------------- */
 .card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 16px; margin-bottom: 12px; }
@@ -607,11 +664,11 @@ select.field { cursor: pointer; }
   text-transform: uppercase; font-weight: 700; margin: 20px 0 8px;
 }
 .warn-box {
-  background: var(--warn-tint); border: 1px solid #E3D0A8; color: #6E4E0E;
+  background: var(--warn-tint); border: 1px solid #E6D5AC; color: #7A5A10;
   padding: 12px 14px; border-radius: var(--r); font-size: 12.5px; line-height: 1.6; margin: 12px 0;
 }
 .ok-box {
-  background: #EDF5EE; border: 1px solid #C7DDC9; color: var(--good);
+  background: #EAF5F1; border: 1px solid #BEDFD3; color: var(--good);
   padding: 14px 16px; border-radius: var(--r); font-size: 13px; line-height: 1.6; margin: 16px 0;
 }
 .import-rows { display: flex; flex-direction: column; gap: 8px; }

@@ -74,8 +74,11 @@ const STUDIOS = {
     layout: "text",
     photos: false,
     costing: true,
+    /* Buffet is the one studio with ready-made station blocks — a whole
+       station's worth of dishes you can drop onto the menu in one go. */
+    stationBlocks: true,
     defaultTitle: "BUFFET MENU",
-    blurb: "Build a buffet station by station from the full dish library.",
+    blurb: "Drop in ready-made stations, or build one dish at a time.",
   },
   canape: {
     key: "canape",
@@ -100,6 +103,7 @@ const STUDIO_KEYS = Object.keys(STUDIOS);
 function freshBuilder(studioKey) {
   return {
     pane: "library",              /* "library" | "canvas" */
+    source: "dishes",             /* "dishes" | "stations" — library sub-view */
     pickerSearch: "",
     pickerCatFilter: "all",
     chipsExpanded: false,
@@ -129,6 +133,7 @@ const state = {
   dishes: { ddr: [], buffet: [], canape: [] },
   menus: [],
   prepVault: [],
+  stationBlocks: [],
   priceBook: [],
   view: "ddr",
   builders: { ddr: freshBuilder("ddr"), buffet: freshBuilder("buffet"), canape: freshBuilder("canape") },
@@ -194,8 +199,13 @@ function downloadBlob(blob, filename) {
 
 function resizeImageFile(file, maxWidth, quality) {
   // Firestore documents cap out at 1MB, and this app has no Storage bucket
-  // configured — so images are embedded as compressed data URIs directly on
-  // the document. Resizing client-side keeps every photo well under that cap.
+  // configured — so images are embedded as data URIs directly on the document.
+  // Resizing client-side keeps every photo well under that cap.
+  //
+  // A PNG is kept a PNG: the canapé photos are transparent cutouts meant to sit
+  // straight on the marble page, and re-encoding one as JPEG would flatten its
+  // background to a solid rectangle. Everything else becomes a smaller JPEG.
+  const keepAlpha = /png/i.test(file.type);
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error("Couldn't read the file."));
@@ -209,7 +219,7 @@ function resizeImageFile(file, maxWidth, quality) {
         const canvas = document.createElement("canvas");
         canvas.width = w; canvas.height = h;
         canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL("image/jpeg", quality));
+        resolve(keepAlpha ? canvas.toDataURL("image/png") : canvas.toDataURL("image/jpeg", quality));
       };
       img.src = reader.result;
     };
@@ -254,6 +264,7 @@ document.addEventListener("DOMContentLoaded", () => {
     STUDIO_KEYS.forEach(listenDishes);
     listenMenus();
     listenPrepVault();
+    listenStationBlocks();
     loadPriceBook();
     if (localStorage.getItem("menuette-unlocked") === "1") enterApp(); else showGate();
   }).catch((err) => {
@@ -328,6 +339,15 @@ function listenMenus() {
       .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     updateSidebarCounts();
     if (state.view === "saved") renderSavedList();
+  }, (err) => showStatus(connectionErrorMsg(err)));
+}
+
+function listenStationBlocks() {
+  db.collection("buffetStationBlocks").onSnapshot((snap) => {
+    state.stationBlocks = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (a.station || "").localeCompare(b.station || "") || (a.source || "").localeCompare(b.source || ""));
+    if (state.view === "buffet") renderPickerList("buffet");
   }, (err) => showStatus(connectionErrorMsg(err)));
 }
 

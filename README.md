@@ -99,6 +99,8 @@ firebase-config.js         your Firebase project config (fill this in)
 data/default-categories.js seed sections + seed PIN (only used on the very first run)
 assets/border-strip.jpg    the sand-swirl strip from the Word template (DDR + Buffet pages)
 assets/marble-bg.jpg       the marble page background from the canapé book (Canapé pages)
+assets/border-strip.png    the same two frames as PNG, used only by the Word export
+assets/marble-bg.png       (see "A note on the Word export" below)
 assets/me-dubai-logo.png   the "ME DUBAI" logo
 ```
 
@@ -117,7 +119,8 @@ identically, so there is only one thing to learn.
 
 - **Library tab** — search, filter by section, and `＋ Add` a dish onto the
   menu. `＋ New` creates a dish; `✎` edits one. Each row shows its section,
-  allergens, food cost, and whether it has a prep list yet.
+  allergens, food cost, and whether it has a prep list yet. Buffet has a second
+  view here — **Ready-made stations** — see below.
 - **Canvas tab** — what's on the menu, grouped by section, with ↑/↓ to reorder
   within a section and ✕ to drop a dish. Below it: the menu title, alignment,
   UPPERCASE / italic toggles, the export file name, and the food cost per cover
@@ -142,12 +145,26 @@ identically, so there is only one thing to learn.
 |---|---|---|---|
 | Sections are | courses | stations | savoury / sweet |
 | Page | sand-swirl strip, off-white | sand-swirl strip, off-white | full-bleed marble |
-| Dishes shown as | text list | text list | photo cards, two across |
-| Pre-loaded | 81 dishes | 177 dishes across 23 stations | 15 canapés with photos |
+| Dishes shown as | text list | text list | photo cards, three to a page |
+| Pre-loaded | 81 dishes | 177 dishes + 72 station blocks | 15 canapés with photos |
 
-Canapé has one extra toggle — **Show photos** — which switches its page between
-the photo-card grid and a plain text list, for when you want a compact
-canapé menu.
+**Ready-made stations (Buffet).** The station toggle above the library lists 72
+stations exactly as they ran on real menus — "Grill Station" with its four
+items, "Ramadan Desserts" with its five — pulled out of the Ramadan, Brunch,
+Christmas and Omniyat menus. **＋ Add all** drops the whole station onto the
+canvas in one go, matched against the dish library so each item brings its
+allergens, cost and prep list with it. Items you already have are skipped, and
+the button counts what's left to add. From there it's an ordinary canvas: drop
+what you don't want, reorder, rename the station heading on the page.
+
+**Canapé photos.** The 15 canapés are transparent cutouts, exactly as in the
+printed canapé book — no tile or backing colour, so the marble of the page
+shows through and around each plate. Three fit on a page: the plate at a size
+worth looking at on the left, name and description beside it, sharing one
+straight gutter down the page whatever shape the photos are. The **Show
+photos** toggle switches to a plain text list when you want a compact canapé
+menu instead. If you upload your own photo, a PNG stays a PNG (transparency
+preserved); anything else becomes a smaller JPEG.
 
 ### Prep Vault
 
@@ -214,18 +231,47 @@ Every branded page — DDR, Buffet and Canapé — ends with a fixed
 "Allergens: D — Dairy · G — Gluten · S — Seafood · N — Nuts" line, in the live
 preview, PDF, print and Word export alike.
 
+## A note on the Word export
+
+`docx.js` writes every embedded image with a `.png` extension no matter what
+type it is told, and the package's `[Content_Types].xml` maps `.png` to
+`image/png` — so handing it JPEG bytes produces a file whose images are
+mislabelled. That's why the two page frames ship twice: the `.jpg` versions are
+what the browser loads (smaller), and matching `.png` versions exist purely for
+the Word export. They're 256-colour palette PNGs, which for near-grey stone and
+sand textures is visually identical to the original at a fraction of a
+truecolour PNG. If you ever replace a frame image, replace both files.
+
 ## Changing the design later
 
-The page look lives in two places kept in sync on purpose — the `PAGE`
-measurements object at the top of `app.js`, and the `.menu-page` rules in
-`style.css`. Both the preview and the `.docx` export are built from those same
-numbers, so a change has to be made in both to stay honest.
+There are two palettes in `style.css`, and they are separate on purpose:
+
+- The **app** tokens (`--bg`, `--accent`, `--ink`…) are the tool's own look.
+  Change them freely.
+- The **page** tokens (`--page-ink`, `--page-accent`, `--page-border`…) are the
+  ME Dubai brand and are used *only* inside `.menu-page`. Restyling the app
+  never changes what comes out of the printer.
+
+The page's measurements live in two places kept in sync on purpose — the `PAGE`
+object at the top of `app.js`, and the `.menu-page` rules in `style.css`. Both
+the preview and the `.docx` export are built from those same numbers, so a
+change has to be made in both to stay honest. The same goes for the marble
+theme's footer mark: `MARBLE_LOGO` in `studio.js` and
+`.theme-marble .brand-logo` in `style.css`.
 
 There are two page themes, chosen per studio by the `theme` field in `STUDIOS`:
 `sand` (the swirl strip down the left margin, from the Word template) and
 `marble` (full-bleed stone, from the printed canapé book). To add a brand
-template of your own, drop its images in `assets/`, add a `theme-yourname`
-block to `style.css` alongside the two existing ones, and point a studio at it.
+template of your own, drop its images in `assets/` (both `.jpg` and `.png`),
+add a `theme-yourname` block to `style.css` alongside the two existing ones,
+and point a studio at it.
+
+**One invariant worth knowing before you touch `.menu-page` CSS:** pagination
+is measured twice — once on the editable preview, once on the plain exported
+page — and the two must break in identical places, or the preview will promise
+a page count the PDF doesn't deliver. So nothing in editable mode may change
+the page's geometry: every editing affordance is absolutely positioned or a
+colour change only.
 
 ## Firestore collections
 
@@ -235,6 +281,7 @@ buffetDishes    Buffet dish library
 canapeDishes    Canapé dish library (each doc also carries its photo, embedded)
 menus           saved menus from all three studios (a `studio` field says which)
 prepVault       the reusable prep-list library
+buffetStationBlocks  ready-made buffet stations, as they ran on real menus
 priceBook       supplier price list, backing the ingredient search
 config          menuSettings: the three section lists + the access PIN
 ```

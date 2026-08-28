@@ -44,6 +44,11 @@ function renderStudioShell(studioKey) {
           </div>
           <div class="rail-body">
             <div id="pane-library-${studioKey}" class="${b.pane === "library" ? "" : "hidden"}">
+              ${st.stationBlocks ? `
+              <div class="seg-tabs seg-tabs-sm">
+                <button class="seg ${b.source === "dishes" ? "active" : ""}" data-source="dishes">Dishes</button>
+                <button class="seg ${b.source === "stations" ? "active" : ""}" data-source="stations">Ready-made stations</button>
+              </div>` : ""}
               <div class="rail-toolbar">
                 <input id="picker-search-${studioKey}" class="field field-sm" placeholder="🔍 Search ${escapeHtml(st.plural)}…" value="${escapeHtml(b.pickerSearch)}">
                 <button class="btn btn-primary btn-sm" data-act="add-dish" title="Add a new ${escapeHtml(st.noun.toLowerCase())}">＋ New</button>
@@ -104,6 +109,12 @@ function renderStudioShell(studioKey) {
     renderPickerList(studioKey);
   });
   el.querySelector('[data-act="add-dish"]').addEventListener("click", () => openDishModal(studioKey, null));
+  el.querySelectorAll("[data-source]").forEach((tab) => tab.addEventListener("click", () => {
+    b.source = tab.dataset.source;
+    el.querySelectorAll("[data-source]").forEach((t) => t.classList.toggle("active", t.dataset.source === b.source));
+    renderPickerCatChips(studioKey);
+    renderPickerList(studioKey);
+  }));
 
   /* --- page settings --- */
   document.getElementById(`b-title-${studioKey}`).addEventListener("input", (e) => {
@@ -163,8 +174,11 @@ function renderPickerCatChips(studioKey) {
   if (!wrap) return;
   const b = builderOf(studioKey);
   const st = studioOf(studioKey);
+  // In station mode the chips count ready-made blocks, not individual dishes.
+  const stationMode = st.stationBlocks && b.source === "stations";
+  const pool = stationMode ? state.stationBlocks.map((s) => ({ category: s.station })) : dishesOf(studioKey);
   const counts = {};
-  dishesOf(studioKey).forEach((d) => { counts[d.category] = (counts[d.category] || 0) + 1; });
+  pool.forEach((d) => { counts[d.category] = (counts[d.category] || 0) + 1; });
 
   const sections = sectionsOf(studioKey);
   const collapsible = sections.length > CHIP_COLLAPSE_AFTER;
@@ -178,7 +192,7 @@ function renderPickerCatChips(studioKey) {
   const chip = (c) => `<button class="cat-chip ${b.pickerCatFilter === c ? "active" : ""}" data-cat="${escapeHtml(c)}">${escapeHtml(c)}${counts[c] ? ` <span class="chip-n">${counts[c]}</span>` : ""}</button>`;
 
   wrap.innerHTML =
-    `<button class="cat-chip ${b.pickerCatFilter === "all" ? "active" : ""}" data-cat="all">All <span class="chip-n">${dishesOf(studioKey).length}</span></button>` +
+    `<button class="cat-chip ${b.pickerCatFilter === "all" ? "active" : ""}" data-cat="all">All <span class="chip-n">${pool.length}</span></button>` +
     shown.map(chip).join("") +
     (collapsible
       ? `<button class="cat-chip chip-more" data-toggle-chips="1">${expanded ? "− Show fewer" : `＋ ${sections.length - shown.length} more`}</button>`
@@ -203,6 +217,8 @@ function renderPickerList(studioKey) {
   const b = builderOf(studioKey);
   const st = studioOf(studioKey);
   const q = b.pickerSearch.trim().toLowerCase();
+
+  if (st.stationBlocks && b.source === "stations") { renderStationBlockList(studioKey); return; }
 
   let rows = dishesOf(studioKey);
   if (b.pickerCatFilter !== "all") rows = rows.filter((d) => d.category === b.pickerCatFilter);
@@ -248,6 +264,88 @@ function renderPickerList(studioKey) {
     btn.addEventListener("click", () => addToCanvas(studioKey, btn.dataset.add)));
   listEl.querySelectorAll("[data-edit]").forEach((btn) =>
     btn.addEventListener("click", () => openDishModal(studioKey, dishesOf(studioKey).find((d) => d.id === btn.dataset.edit))));
+}
+
+/* ---------------- Ready-made station blocks (Buffet) ----------------
+   A block is a whole station as it ran on a real menu — "Grill Station" with
+   its four items — so a new buffet can be assembled from stations rather than
+   one dish at a time. Adding a block puts every one of its items on the canvas
+   under that station. */
+function renderStationBlockList(studioKey) {
+  const listEl = document.getElementById(`picker-list-${studioKey}`);
+  const b = builderOf(studioKey);
+  const q = b.pickerSearch.trim().toLowerCase();
+
+  let rows = state.stationBlocks;
+  if (b.pickerCatFilter !== "all") rows = rows.filter((s) => s.station === b.pickerCatFilter);
+  if (q) {
+    rows = rows.filter((s) => String(s.station || "").toLowerCase().includes(q) ||
+      String(s.source || "").toLowerCase().includes(q) ||
+      (s.items || []).some((i) => String(i.name || "").toLowerCase().includes(q)));
+  }
+
+  const countEl = document.getElementById(`rail-lib-count-${studioKey}`);
+  if (countEl) countEl.textContent = state.stationBlocks.length;
+
+  if (!rows.length) {
+    listEl.innerHTML = `<div class="empty-note">${state.stationBlocks.length
+      ? "No stations match that search."
+      : "No ready-made stations yet."}</div>`;
+    return;
+  }
+
+  const onCanvas = new Set(builderOf(studioKey).canvas.map((i) => nameKey(i.name) + "|" + i.category));
+  listEl.innerHTML = rows.map((s) => {
+    const items = s.items || [];
+    const already = items.filter((i) => onCanvas.has(nameKey(i.name) + "|" + s.station)).length;
+    return `
+    <div class="station-card ${already === items.length ? "is-added" : ""}">
+      <header>
+        <div>
+          <div class="station-name">${escapeHtml(s.station)}</div>
+          <div class="station-meta">
+            <span class="badge badge-quiet">${plural(items.length, "item")}</span>
+            <span class="station-source">from ${escapeHtml(s.source || "—")}</span>
+          </div>
+        </div>
+        <button class="btn btn-sm ${already === items.length ? "btn-ghost" : "btn-primary"}" data-add-station="${s.id}" ${already === items.length ? "disabled" : ""}>
+          ${already === items.length ? "✓ On menu" : already ? `＋ Add ${items.length - already}` : "＋ Add all"}
+        </button>
+      </header>
+      <ul class="station-items">${items.map((i) => `<li>${escapeHtml(i.name)}</li>`).join("")}</ul>
+    </div>`;
+  }).join("");
+
+  listEl.querySelectorAll("[data-add-station]").forEach((btn) =>
+    btn.addEventListener("click", () => addStationBlock(studioKey, btn.dataset.addStation)));
+}
+
+function addStationBlock(studioKey, blockId) {
+  const block = state.stationBlocks.find((s) => s.id === blockId);
+  if (!block) return;
+  const b = builderOf(studioKey);
+  const library = dishesOf(studioKey);
+  let added = 0;
+
+  (block.items || []).forEach((item) => {
+    const key = nameKey(item.name);
+    if (b.canvas.some((c) => nameKey(c.name) === key && c.category === block.station)) return;
+    // Prefer the library's own record for the dish so its allergens, cost and
+    // prep list come along; fall back to the bare block entry if it isn't one.
+    const dish = library.find((d) => nameKey(d.name) === key && d.category === block.station)
+              || library.find((d) => nameKey(d.name) === key);
+    b.canvas.push(dish
+      ? { dishId: dish.id, name: dish.name, category: block.station, description: dish.description || item.description || "",
+          allergens: dish.allergens || "", cost: dish.cost || 0, imageBase64: "", prepItems: (dish.prepItems || []).slice() }
+      : { dishId: "block:" + blockId + ":" + key, name: item.name, category: block.station,
+          description: item.description || "", allergens: "", cost: 0, imageBase64: "", prepItems: [] });
+    added++;
+  });
+
+  if (!added) { toast("Every item from that station is already on the menu."); return; }
+  renderPickerList(studioKey);
+  renderCanvasAndPreview(studioKey);
+  toast(`Added ${plural(added, "item")} to ${block.station}.`);
 }
 
 /* ============================== Canvas ============================== */
@@ -457,7 +555,8 @@ function buildDishHTML(item, idx, opts) {
 function buildUnits(items, opts) {
   const st = studioOf(opts.studioKey);
   const usePhotos = st.photos && opts.photoLayout;
-  const perRow = usePhotos ? 2 : 1;
+  // Photo cards run one per row, full width — three to a page.
+  const perRow = 1;
   const groups = groupByCategory(items, opts.sectionOrder && opts.sectionOrder.length ? opts.sectionOrder : sectionsOf(opts.studioKey));
   const units = [];
 
@@ -688,7 +787,7 @@ function openDishModal(studioKey, dish) {
       const file = e.target.files[0];
       if (!file) return;
       try {
-        pendingImage = await resizeImageFile(file, 600, 0.72);
+        pendingImage = await resizeImageFile(file, 640, 0.72);
         renderImagePreview();
       } catch (err) {
         toast("Couldn't read that image: " + err.message, "error");
@@ -909,6 +1008,19 @@ function loadMenu(id) {
   toast(`Loaded “${m.name}”.`);
 }
 
+/* The marble page's footer mark — smaller and centred, unlike the sand
+   template's corner logo. Mirrors .theme-marble .brand-logo in style.css. */
+const MARBLE_LOGO = { widthIn: PAGE.logoWidthIn, heightIn: PAGE.logoHeightIn, bottomIn: 0.30 };
+
+/* Canapé photos are transparent PNG cutouts so the marble shows through them;
+   anything else the user uploads stays a JPEG. Word needs to be told which. */
+function dataUriImageType(uri) {
+  return /^data:image\/png/i.test(uri || "") ? "png" : "jpg";
+}
+function dataUriToBytes(uri) {
+  return Uint8Array.from(atob(String(uri).split(",")[1]), (c) => c.charCodeAt(0));
+}
+
 /* ============================== Export: Word (.docx) ============================== */
 async function exportMenuDocx(studioKey, btn) {
   const b = builderOf(studioKey);
@@ -927,14 +1039,23 @@ async function exportMenuDocx(studioKey, btn) {
     const inchesToPx = (n) => Math.round(n * 96);
     const align = b.alignment === "left" ? AlignmentType.LEFT : AlignmentType.CENTER;
 
+    // docx.js writes every embedded image with a .png extension regardless of
+    // the `type` it is given, and [Content_Types].xml maps .png to image/png —
+    // so handing it JPEG bytes produces a file whose images are mislabelled.
+    // The page frames therefore ship in a second, PNG copy used only here; the
+    // .jpg versions stay for the web page, where they're smaller.
     const logoBuf = await fetch("assets/me-dubai-logo.png").then((r) => r.arrayBuffer());
-    const frameBuf = await fetch(st.theme === "marble" ? "assets/marble-bg.jpg" : "assets/border-strip.jpg").then((r) => r.arrayBuffer());
+    const frameBuf = await fetch(st.theme === "marble" ? "assets/marble-bg.png" : "assets/border-strip.png").then((r) => r.arrayBuffer());
+    const logo = st.theme === "marble"
+      ? { widthIn: MARBLE_LOGO.widthIn, heightIn: MARBLE_LOGO.heightIn, bottomIn: MARBLE_LOGO.bottomIn,
+          leftIn: (PAGE.widthIn - MARBLE_LOGO.widthIn) / 2 }
+      : { widthIn: PAGE.logoWidthIn, heightIn: PAGE.logoHeightIn, bottomIn: PAGE.logoBottomIn, leftIn: PAGE.logoLeftIn };
 
     // The sand theme anchors a narrow swirl strip down the left margin; the
     // marble theme lays a full-bleed page image behind all the text instead.
     const frameImage = st.theme === "marble"
       ? new ImageRun({
-          type: "jpg", data: frameBuf,
+          type: "png", data: frameBuf,
           transformation: { width: inchesToPx(PAGE.widthIn), height: inchesToPx(PAGE.heightIn) },
           floating: {
             horizontalPosition: { relative: HorizontalPositionRelativeFrom.PAGE, offset: 0 },
@@ -944,7 +1065,7 @@ async function exportMenuDocx(studioKey, btn) {
           },
         })
       : new ImageRun({
-          type: "jpg", data: frameBuf,
+          type: "png", data: frameBuf,
           transformation: { width: inchesToPx(PAGE.borderWidthIn), height: inchesToPx(PAGE.borderHeightIn) },
           floating: {
             horizontalPosition: { relative: HorizontalPositionRelativeFrom.PAGE, offset: inchesToEmu(PAGE.borderLeftIn) },
@@ -953,6 +1074,19 @@ async function exportMenuDocx(studioKey, btn) {
             behindDocument: false, allowOverlap: true,
           },
         });
+
+    /* Word has no object-fit, so each photo's real aspect ratio has to be known
+       up front to size it without distortion. Decoding is async even for a data
+       URI, so resolve them all before building the document. */
+    const photoAspects = new Map();
+    if (st.photos && b.photoLayout) {
+      await Promise.all(b.canvas.filter((i) => i.imageBase64).map((i) => new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => { photoAspects.set(i.dishId, img.width / img.height); resolve(); };
+        img.onerror = () => resolve();
+        img.src = i.imageBase64;
+      })));
+    }
 
     /* Mirror the on-screen pagination so the Word file breaks in the same
        places as the preview and the PDF. */
@@ -975,10 +1109,20 @@ async function exportMenuDocx(studioKey, btn) {
     const pushDish = (item) => {
       if (st.photos && b.photoLayout && item.imageBase64) {
         try {
-          const bytes = Uint8Array.from(atob(item.imageBase64.split(",")[1]), (c) => c.charCodeAt(0));
+          // Sized to fit inside the same 2.2 x 1.5in slot the page uses, keeping
+          // the photo's own shape — Word has no object-fit, so the box is
+          // computed here rather than letting a tall cone stretch to a square.
+          const ar = photoAspects.get(item.dishId) || 1.4;
+          const boxW = 2.2, boxH = 1.5;
+          const scale = Math.min(boxW / (boxH * ar), 1);
+          const w = boxH * ar * scale, h = boxH * scale;
           children.push(new Paragraph({
             alignment: align, spacing: { before: 120, after: 60 },
-            children: [new ImageRun({ type: "jpg", data: bytes, transformation: { width: inchesToPx(2.3), height: inchesToPx(1.66) } })],
+            children: [new ImageRun({
+              type: dataUriImageType(item.imageBase64),
+              data: dataUriToBytes(item.imageBase64),
+              transformation: { width: inchesToPx(w), height: inchesToPx(h) },
+            })],
           }));
         } catch (imgErr) {
           console.warn("Skipped a canapé photo in the Word export:", imgErr.message);
@@ -1035,12 +1179,12 @@ async function exportMenuDocx(studioKey, btn) {
           default: new Footer({
             children: [new Paragraph({ children: [new ImageRun({
               type: "png", data: logoBuf,
-              transformation: { width: inchesToPx(PAGE.logoWidthIn), height: inchesToPx(PAGE.logoHeightIn) },
+              transformation: { width: inchesToPx(logo.widthIn), height: inchesToPx(logo.heightIn) },
               floating: {
-                // marble centres the mark, sand tucks it right — matches the
-                // .brand-logo rules in style.css
-                horizontalPosition: { relative: HorizontalPositionRelativeFrom.PAGE, offset: inchesToEmu(st.theme === "marble" ? (PAGE.widthIn - PAGE.logoWidthIn) / 2 : PAGE.logoLeftIn) },
-                verticalPosition: { relative: VerticalPositionRelativeFrom.PAGE, offset: inchesToEmu(PAGE.heightIn - PAGE.logoBottomIn - PAGE.logoHeightIn) },
+                // marble centres a smaller mark, sand tucks the full one into
+                // the right margin — matches the .brand-logo rules in style.css
+                horizontalPosition: { relative: HorizontalPositionRelativeFrom.PAGE, offset: inchesToEmu(logo.leftIn) },
+                verticalPosition: { relative: VerticalPositionRelativeFrom.PAGE, offset: inchesToEmu(PAGE.heightIn - logo.bottomIn - logo.heightIn) },
                 wrap: { type: TextWrappingType.NONE, side: TextWrappingSide.BOTH_SIDES },
                 behindDocument: true, allowOverlap: true,
               },
