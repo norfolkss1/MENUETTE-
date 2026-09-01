@@ -157,22 +157,20 @@ allergens, cost and prep list with it. Items you already have are skipped, and
 the button counts what's left to add. From there it's an ordinary canvas: drop
 what you don't want, reorder, rename the station heading on the page.
 
-**Canapé photos.** The 15 canapés are transparent cutouts, exactly as in the
-printed canapé book — no tile or backing colour, so the marble of the page
-shows through and around each plate. Three fit on a page, one per row: the
-plate at a size worth looking at on one side, name and description on the other.
+**Canapé photos.** Three canapés fit on a page, one per row: a framed
+photograph on the left, name and description beside it.
 
-Worth knowing, because it looks like a bug until you see why: **these photos
-were shot and laid out to bleed off the page.** In the printed book each plate
-runs past the trim, and the bitmaps are cut off to match — those pixels simply
-don't exist in any of the source files. Frame one in the middle of a page and
-the cut shows as a slice through the plate. So each card pushes its photo off
-the page edge on the side it is actually cut on, exactly as the book does, and
-the page's own edge does the trimming. Which side is stored per canapé as
-`bleed` (`left` / `right` / `none`); the two photos that aren't cut sit inset
-and whole. Menuette uses the least-cropped copy of each photo found across all
-94 canapé and DDR menu PDFs, which is why a few come from other proposals
-rather than from `CANAPE MENU ALL.pdf`.
+Worth knowing, because it explains why they look the way they do: **every
+canapé bitmap in the source menus is cut off at one edge.** Those books place
+the plates so they bleed past the page trim, and the missing pixels exist in no
+file — not in `CANAPE MENU ALL.pdf`, not in the higher-resolution
+`CANAPE MENU 2025.pdf`, not in any of the 150 menu PDFs, the PowerPoints, or
+the photographer's original folder (that shoot is the à la carte set, on black).
+Shown as a floating cutout, that cut reads as a slice through the plate. Shown
+as a framed photograph, the same edge is simply where the picture ends — which
+is what a photograph looks like. So each photo is a rectangle cropped to the
+dish's own shape (portrait for a tall cone, landscape for a long board), filled
+edge to edge, with a hairline shadow so it sits on the marble as a print.
 
 The **Show photos** toggle switches to a plain text list when you want a
 compact canapé menu instead. If you upload your own photo, a PNG stays a PNG
@@ -246,14 +244,19 @@ preview, PDF, print and Word export alike.
 
 ## A note on the Word export
 
-`docx.js` writes every embedded image with a `.png` extension no matter what
-type it is told, and the package's `[Content_Types].xml` maps `.png` to
-`image/png` — so handing it JPEG bytes produces a file whose images are
-mislabelled. That's why the two page frames ship twice: the `.jpg` versions are
-what the browser loads (smaller), and matching `.png` versions exist purely for
-the Word export. They're 256-colour palette PNGs, which for near-grey stone and
-sand textures is visually identical to the original at a fraction of a
-truecolour PNG. If you ever replace a frame image, replace both files.
+`docx.js` names every embedded image `<id>.png` no matter what type it is told
+— the filename is hardcoded in its `ImageRun` — and the package's
+`[Content_Types].xml` maps `.png` to `image/png`. Hand it JPEG bytes and you
+get a file whose images are mislabelled. Two consequences:
+
+- The two page frames ship twice: the `.jpg` versions are what the browser
+  loads (smaller), and matching `.png` versions exist purely for the Word
+  export. They're 256-colour palette PNGs, which for near-grey stone and sand
+  textures is visually identical at a fraction of a truecolour PNG. **If you
+  replace a frame image, replace both files.**
+- Canapé photos are re-encoded to PNG at export time, at roughly 150 dpi for
+  the size Word actually prints them — honest bytes without shipping a
+  full-resolution lossless copy. A 15-canapé menu comes out around 1.4MB.
 
 ## Changing the design later
 

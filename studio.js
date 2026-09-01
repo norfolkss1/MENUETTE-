@@ -361,7 +361,6 @@ function addToCanvas(studioKey, dishId) {
     allergens: d.allergens || "",
     cost: d.cost || 0,
     imageBase64: d.imageBase64 || "",
-    bleed: d.bleed || "none",
     photoW: d.photoW || 0,
     photoH: d.photoH || 0,
     prepItems: (d.prepItems || []).slice(),
@@ -531,10 +530,9 @@ function buildSectionHeaderHTML(category, opts, groupIndex, groupCount, continue
     </div>`;
 }
 
-/* The slot a canapé photo sits in, in inches — a bleeding photo gets the wider
-   column because part of it hangs off the page. Keep in step with the
+/* The slot a canapé photo sits in, in inches. Keep in step with the
    grid-template-columns on .canape-card in style.css. */
-const CANAPE_SLOT = { heightIn: 1.72, bleedWidthIn: 2.55, insetWidthIn: 1.95 };
+const CANAPE_SLOT = { heightIn: 1.62, widthIn: 2.3 };
 
 /* A real <img> at an explicitly computed size, not a CSS background.
    Two reasons: html2canvas leaves a faint seam down the edge of a scaled
@@ -542,22 +540,20 @@ const CANAPE_SLOT = { heightIn: 1.72, bleedWidthIn: 2.55, insetWidthIn: 1.95 };
    plate in the exported PDF; and giving the element its size up front means the
    page lays out identically whether or not the photo has finished decoding —
    which pagination depends on, since it measures the page immediately. */
-function canapePhotoSize(item, bleed) {
-  const slotW = bleed === "none" ? CANAPE_SLOT.insetWidthIn : CANAPE_SLOT.bleedWidthIn;
+function canapePhotoSize(item) {
   const natW = Number(item.photoW) || 0;
   const natH = Number(item.photoH) || 0;
   if (!natW || !natH) return null;
-  const scale = Math.min(slotW / natW, CANAPE_SLOT.heightIn / natH);
+  const scale = Math.min(CANAPE_SLOT.widthIn / natW, CANAPE_SLOT.heightIn / natH);
   return { widthIn: natW * scale, heightIn: natH * scale };
 }
 
-function canapePhotoHTML(item, bleed) {
+function canapePhotoHTML(item) {
   if (!item.imageBase64) return "";
-  const size = canapePhotoSize(item, bleed);
+  const size = canapePhotoSize(item);
   if (!size) {
     // Unknown intrinsic size (an older record): let the browser fit it.
-    const slotW = bleed === "none" ? CANAPE_SLOT.insetWidthIn : CANAPE_SLOT.bleedWidthIn;
-    return `<img class="canape-photo" src="${item.imageBase64}" alt="" style="max-width:${slotW}in;max-height:${CANAPE_SLOT.heightIn}in;">`;
+    return `<img class="canape-photo" src="${item.imageBase64}" alt="" style="max-width:${CANAPE_SLOT.widthIn}in;max-height:${CANAPE_SLOT.heightIn}in;">`;
   }
   return `<img class="canape-photo" src="${item.imageBase64}" alt="" style="width:${size.widthIn.toFixed(3)}in;height:${size.heightIn.toFixed(3)}in;">`;
 }
@@ -573,16 +569,9 @@ function buildDishHTML(item, idx, opts) {
   const descHtml = `<span class="ddesc" ${ce} data-idx="${idx}" data-field="description" data-placeholder="Add a description…" style="${opts.italics ? "" : "font-style:normal;"}">${escapeHtml(item.description || "")}</span>`;
 
   if (st.photos && opts.photoLayout) {
-    // These photos are cut off at the edge in the source book — they were shot
-    // and laid out to bleed off the page, so the plate runs past the trim
-    // rather than sitting whole inside a frame. Reproducing that here (each
-    // photo bleeding off the side it is actually cut on) is what makes the cut
-    // read as it does in print instead of as a slice through the middle of the
-    // page. `bleed` is stored per dish; a photo that isn't cut sits inset.
-    const bleed = item.bleed === "left" || item.bleed === "right" ? item.bleed : "none";
-    return `<div class="canape-card bleed-${bleed}">
+    return `<div class="canape-card">
       ${dropBtn}
-      <div class="canape-slot">${canapePhotoHTML(item, bleed)}</div>
+      <div class="canape-slot">${canapePhotoHTML(item)}</div>
       <div class="canape-text">${nameHtml}${allergHtml}${descHtml}</div>
     </div>`;
   }
@@ -1073,13 +1062,32 @@ function loadMenu(id) {
    template's corner logo. Mirrors .theme-marble .brand-logo in style.css. */
 const MARBLE_LOGO = { widthIn: PAGE.logoWidthIn, heightIn: PAGE.logoHeightIn, bottomIn: 0.30 };
 
-/* Canapé photos are transparent PNG cutouts so the marble shows through them;
-   anything else the user uploads stays a JPEG. Word needs to be told which. */
-function dataUriImageType(uri) {
-  return /^data:image\/png/i.test(uri || "") ? "png" : "jpg";
-}
 function dataUriToBytes(uri) {
   return Uint8Array.from(atob(String(uri).split(",")[1]), (c) => c.charCodeAt(0));
+}
+
+/* docx.js 8.5.0 names every embedded image `<id>.png` no matter what `type` it
+   is given (the filename is hardcoded in ImageRun), and [Content_Types].xml
+   maps .png to image/png — so a JPEG handed to it lands in the file
+   mislabelled. Re-encoding to real PNG at the size Word will actually print it
+   keeps the bytes honest without shipping a full-resolution lossless copy. */
+function toPngDataUri(dataUri, targetWidthPx) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onerror = () => resolve(null);
+    img.onload = () => {
+      try {
+        const scale = Math.min(1, targetWidthPx / img.width);
+        const c = document.createElement("canvas");
+        c.width = Math.max(1, Math.round(img.width * scale));
+        c.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = c.getContext("2d");
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        resolve(c.toDataURL("image/png"));
+      } catch (e) { resolve(null); }
+    };
+    img.src = dataUri;
+  });
 }
 
 /* ============================== Export: Word (.docx) ============================== */
@@ -1136,6 +1144,17 @@ async function exportMenuDocx(studioKey, btn) {
           },
         });
 
+    /* Word gets its own PNG copy of each photo, at ~150dpi for the size it is
+       placed at — see toPngDataUri(). */
+    const wordPhotos = new Map();
+    if (st.photos && b.photoLayout) {
+      await Promise.all(b.canvas.filter((i) => i.imageBase64).map(async (i) => {
+        const size = canapePhotoSize(i);
+        const png = await toPngDataUri(i.imageBase64, Math.round((size ? size.widthIn : 2.3) * 150));
+        if (png) wordPhotos.set(i.dishId, png);
+      }));
+    }
+
     /* Mirror the on-screen pagination so the Word file breaks in the same
        places as the preview and the PDF. */
     const opts = previewOptions(studioKey, { editable: false });
@@ -1159,17 +1178,13 @@ async function exportMenuDocx(studioKey, btn) {
         try {
           // Word has no object-fit, so the photo is given the exact size the
           // page computes for it — a tall cone stays tall instead of being
-          // stretched to fill a box. Word can't bleed off the page, so a
-          // bleeding photo is simply aligned to the side it bleeds toward.
-          const bleed = item.bleed === "left" || item.bleed === "right" ? item.bleed : "none";
-          const size = canapePhotoSize(item, bleed) || { widthIn: 2.2, heightIn: 1.5 };
-          const photoAlign = bleed === "left" ? AlignmentType.LEFT
-                          : bleed === "right" ? AlignmentType.RIGHT : align;
+          // stretched to fill a box.
+          const size = canapePhotoSize(item) || { widthIn: 2.2, heightIn: 1.5 };
           children.push(new Paragraph({
-            alignment: photoAlign, spacing: { before: 120, after: 60 },
+            alignment: align, spacing: { before: 120, after: 60 },
             children: [new ImageRun({
-              type: dataUriImageType(item.imageBase64),
-              data: dataUriToBytes(item.imageBase64),
+              type: "png",
+              data: dataUriToBytes(wordPhotos.get(item.dishId) || item.imageBase64),
               transformation: { width: inchesToPx(size.widthIn), height: inchesToPx(size.heightIn) },
             })],
           }));

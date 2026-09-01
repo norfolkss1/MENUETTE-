@@ -528,42 +528,27 @@ select.field { cursor: pointer; }
 .menu-page.theme-sand .page-number { left: 1.08in; }
 
 /* ---------------- Canapé photo cards ----------------
-   Three to a page, one per row.
+   Three to a page, one per row: a framed photo on the left, name and
+   description beside it.
 
-   The photos in the source book were laid out to BLEED off the page: each
-   plate runs past the trim rather than sitting whole inside a frame, and the
-   embedded bitmaps are cut off accordingly — those pixels don't exist. Framing
-   one in the middle of a page therefore shows the cut as a slice. So each card
-   pushes its photo off the page edge on the side it is actually cut on, the
-   way the printed book does, and .menu-page's overflow:hidden trims it. A
-   photo that isn't cut (`bleed-none`) sits inset like any other image.
-
-   The photo is a real <img> sized in inches by canapePhotoHTML(), never a
-   scaled CSS background — see the comment there. Nothing is ever cropped
-   further: whatever survives of a plate is always shown whole, wide board or
-   tall cone alike. */
-.menu-page .canape-grid { display: block; margin-bottom: 0.2in; }
+   The photos are rectangular frames, not cutouts. Every canapé bitmap in the
+   source menus is cut off at one edge — those books place the plates so they
+   bleed past the page trim, and the missing pixels exist in no file we have.
+   Shown as a floating cutout, that cut reads as a slice through the plate;
+   shown as a framed photograph, the same edge is just where the picture ends,
+   which is what a photo is supposed to look like. Each frame is cropped to the
+   dish's own shape (portrait for a tall cone, landscape for a long board) and
+   sized in inches by canapePhotoHTML(), never by a scaled CSS background. */
+.menu-page .canape-grid { display: block; margin-bottom: 0.19in; }
 .menu-page .canape-card {
   position: relative;
-  display: grid; gap: 0 0.2in; align-items: center;
+  display: grid; grid-template-columns: 2.3in 1fr; gap: 0 0.22in; align-items: center;
 }
-.menu-page .canape-slot { height: 1.72in; display: flex; align-items: center; }
-.menu-page .canape-photo { display: block; }
-
-/* photo left, bleeding off the left trim */
-.menu-page .canape-card.bleed-left { grid-template-columns: 2.55in 1fr; margin-left: -0.6in; }
-.menu-page .canape-card.bleed-left .canape-slot { justify-content: flex-start; }
-
-/* photo right, bleeding off the right trim */
-.menu-page .canape-card.bleed-right { grid-template-columns: 1fr 2.55in; margin-right: -0.6in; }
-.menu-page .canape-card.bleed-right .canape-slot { order: 2; justify-content: flex-end; }
-.menu-page .canape-card.bleed-right .canape-text { order: 1; }
-
-/* uncut photo — no bleed, sits inside the margin */
-.menu-page .canape-card.bleed-none { grid-template-columns: 1fr 1.95in; }
-.menu-page .canape-card.bleed-none .canape-slot { order: 2; justify-content: center; }
-.menu-page .canape-card.bleed-none .canape-text { order: 1; }
-
+.menu-page .canape-slot { height: 1.62in; display: flex; align-items: center; justify-content: center; }
+.menu-page .canape-photo {
+  display: block; border-radius: 3px;
+  box-shadow: 0 1px 6px -2px rgba(0,0,0,.28);
+}
 .menu-page .canape-text { font-size: 12px; line-height: 1.4; text-align: left; }
 .menu-page .canape-card .dname { font-size: 12px; letter-spacing: .4px; }
 .menu-page .canape-card .ddesc { font-size: 10.5px; margin-top: 4px; }
