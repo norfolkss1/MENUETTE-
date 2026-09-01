@@ -205,9 +205,19 @@ named at the top so you know what's missing rather than it silently vanishing.
 
 - **📕 PDF** downloads a real `.pdf` — no print dialog. It's a high-resolution
   snapshot of the exact live preview, one PDF page per preview page.
-- **📄 Word** builds a real, editable `.docx` client-side, at the template's
-  page size, with the frame and logo embedded and page breaks in the same
-  places as the preview.
+- **📄 Word** asks which of two files you want, because they answer different
+  needs and no Word file can be both:
+  - **Designed page** — the menu exactly as the preview shows it: fonts,
+    spacing, marble, logo, everything. Each page goes in as full-page artwork
+    anchored to the sheet, so Word can't reflow it. What you send a client.
+    The text is a picture and can't be retyped.
+  - **Editable text** — real Word paragraphs anyone can edit, inside the
+    branded frame with the logo, breaking pages where the preview does. The
+    layout is Word's own, so it won't match the preview line for line. What you
+    send a colleague who has to change the wording.
+
+  Your last choice is remembered per studio. A designed 2-page DDR menu is
+  around 750KB; a 5-page canapé menu with photos, about 4MB.
 - **🖨️ Print** is separate from both — the browser print dialog on the styled
   page, if you'd rather print physically or use the OS "Save as PDF".
 

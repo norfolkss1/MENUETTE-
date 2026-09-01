@@ -723,6 +723,19 @@ select.field { cursor: pointer; }
 .tie-row-name { font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 6px; }
 .tie-row-meta { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
 
+/* ---------------- Choice list (Word export flavour) ---------------- */
+.choice-list { display: flex; flex-direction: column; gap: 10px; margin: 16px 0 6px; }
+.choice {
+  display: flex; flex-direction: column; gap: 5px; text-align: left;
+  border: 1px solid var(--border-strong); background: var(--panel);
+  border-radius: var(--r); padding: 14px 16px; cursor: pointer;
+  transition: border-color .12s, background .12s, box-shadow .12s;
+}
+.choice:hover { border-color: var(--accent); background: var(--accent-tint); }
+.choice.is-chosen { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
+.choice-title { font-weight: 700; font-size: 14px; color: var(--ink); }
+.choice-note { font-size: 12.5px; color: var(--muted); line-height: 1.55; }
+
 /* ---------------- Ingredient cost editor ---------------- */
 .ingredient-row {
   border: 1px solid var(--border); border-radius: var(--r-sm); padding: 10px;

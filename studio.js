@@ -136,7 +136,7 @@ function renderStudioShell(studioKey) {
 
   /* --- top actions --- */
   el.querySelector('[data-act="save"]').addEventListener("click", () => saveCurrentMenu(studioKey));
-  el.querySelector('[data-act="docx"]').addEventListener("click", (e) => exportMenuDocx(studioKey, e.currentTarget));
+  el.querySelector('[data-act="docx"]').addEventListener("click", (e) => openWordExportModal(studioKey, e.currentTarget));
   el.querySelector('[data-act="pdf"]').addEventListener("click", (e) => exportMenuPdf(studioKey, e.currentTarget));
   el.querySelector('[data-act="print"]').addEventListener("click", () => printMenu(studioKey));
   el.querySelector('[data-act="prep"]').addEventListener("click", () => openPrepListModal(studioKey));
@@ -1090,8 +1090,117 @@ function toPngDataUri(dataUri, targetWidthPx) {
   });
 }
 
-/* ============================== Export: Word (.docx) ============================== */
-async function exportMenuDocx(studioKey, btn) {
+/* ============================== Export: Word (.docx) ==============================
+   Two Word files are possible and they answer different needs, so the studio
+   asks which one rather than guessing:
+
+   · Designed  — the finished page exactly as the preview shows it, put into a
+                 Word file as full-page artwork. What you send a client.
+   · Editable  — real Word paragraphs someone can retype, inside the branded
+                 frame. What you send a colleague who has to change the wording.
+
+   Neither can be both: Word has no way to reproduce the page's typography and
+   still leave it as editable text. */
+function openWordExportModal(studioKey, btn) {
+  const b = builderOf(studioKey);
+  const st = studioOf(studioKey);
+  if (!b.canvas.length) { toast(`Add at least one ${st.noun.toLowerCase()} before exporting.`, "error"); return; }
+  const chosen = b.wordStyle === "text" ? "text" : "designed";
+
+  openModal(`
+    <h3>Export to Word</h3>
+    <p class="hint-text" style="margin-top:0;">Two kinds of Word file — pick whichever suits what you're about to do with it.</p>
+    <div class="choice-list">
+      <button class="choice ${chosen === "designed" ? "is-chosen" : ""}" data-word="designed">
+        <span class="choice-title">Designed page</span>
+        <span class="choice-note">The menu exactly as you see it in the preview — fonts, spacing, marble, logo, everything. Best for sending to a client. The text is artwork, so it can't be retyped in Word.</span>
+      </button>
+      <button class="choice ${chosen === "text" ? "is-chosen" : ""}" data-word="text">
+        <span class="choice-title">Editable text</span>
+        <span class="choice-note">Real Word paragraphs anyone can edit, inside the branded border with the logo. The layout is Word's own, so it won't match the preview line for line.</span>
+      </button>
+    </div>
+    <p class="hint-text">Either way, <b>📕 PDF</b> and <b>🖨️ Print</b> always give you the designed page.</p>
+  `);
+
+  document.querySelectorAll("[data-word]").forEach((el) => el.addEventListener("click", () => {
+    b.wordStyle = el.dataset.word;
+    closeModal();
+    if (b.wordStyle === "text") exportMenuDocxText(studioKey, btn);
+    else exportMenuDocxStyled(studioKey, btn);
+  }));
+}
+
+/* The designed file: each preview page rendered once and placed as full-page
+   artwork, anchored to the page itself so Word can't reflow it. Rendered as PNG
+   because docx.js names every embedded image `.png` whatever it is actually
+   given (see the note in the README) — at 2x, which is print-sharp without the
+   file running away. */
+async function exportMenuDocxStyled(studioKey, btn) {
+  const b = builderOf(studioKey);
+  const st = studioOf(studioKey);
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = "Building…";
+  let holder;
+  try {
+    const {
+      Document, Packer, Paragraph, ImageRun, PageBreak,
+      HorizontalPositionRelativeFrom, VerticalPositionRelativeFrom, TextWrappingType, TextWrappingSide,
+    } = docx;
+    const inchesToTwip = (n) => Math.round(n * 1440);
+    const inchesToPx = (n) => Math.round(n * 96);
+
+    const pages = buildMenuPagesHTML(b.canvas, previewOptions(studioKey, { editable: false }));
+    holder = document.createElement("div");
+    holder.style.position = "fixed";
+    holder.style.left = "-10000px";
+    holder.style.top = "0";
+    holder.innerHTML = pages.map((p) => `<div class="menu-page-wrap" style="padding:0;">${p}</div>`).join("");
+    document.body.appendChild(holder);
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+
+    const pageEls = holder.querySelectorAll(".menu-page");
+    const children = [];
+    for (let i = 0; i < pageEls.length; i++) {
+      const canvas = await html2canvas(pageEls[i], { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+      if (i > 0) children.push(new Paragraph({ children: [new PageBreak()] }));
+      children.push(new Paragraph({ children: [new ImageRun({
+        type: "png",
+        data: dataUriToBytes(canvas.toDataURL("image/png")),
+        transformation: { width: inchesToPx(PAGE.widthIn), height: inchesToPx(PAGE.heightIn) },
+        floating: {
+          horizontalPosition: { relative: HorizontalPositionRelativeFrom.PAGE, offset: 0 },
+          verticalPosition: { relative: VerticalPositionRelativeFrom.PAGE, offset: 0 },
+          wrap: { type: TextWrappingType.NONE, side: TextWrappingSide.BOTH_SIDES },
+          behindDocument: true, allowOverlap: true,
+        },
+      })] }));
+    }
+
+    const doc = new Document({
+      sections: [{
+        properties: {
+          page: {
+            size: { width: inchesToTwip(PAGE.widthIn), height: inchesToTwip(PAGE.heightIn) },
+            margin: { top: 0, bottom: 0, left: 0, right: 0 },
+          },
+        },
+        children,
+      }],
+    });
+    const blob = await Packer.toBlob(doc);
+    downloadBlob(blob, `${sanitizeFilename(b.filename || b.titleText || st.short)}.docx`);
+    toast(`Word file downloaded — ${plural(pageEls.length, "designed page")}.`);
+  } catch (err) {
+    console.error(err);
+    toast("Couldn't build the Word document: " + err.message, "error");
+  } finally {
+    if (holder) document.body.removeChild(holder);
+    btn.disabled = false; btn.textContent = label;
+  }
+}
+
+async function exportMenuDocxText(studioKey, btn) {
   const b = builderOf(studioKey);
   const st = studioOf(studioKey);
   if (!b.canvas.length) { toast(`Add at least one ${st.noun.toLowerCase()} before exporting.`, "error"); return; }

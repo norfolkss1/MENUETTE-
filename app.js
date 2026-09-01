@@ -114,6 +114,7 @@ function freshBuilder(studioKey) {
     italics: true,
     photoLayout: STUDIOS[studioKey].layout === "photo",
     filename: "",
+    wordStyle: "designed",        /* "designed" | "text" — Word export flavour */
     activeMenuId: null,
     sectionLabels: {},
     sectionOrder: [],
