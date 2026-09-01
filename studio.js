@@ -361,6 +361,9 @@ function addToCanvas(studioKey, dishId) {
     allergens: d.allergens || "",
     cost: d.cost || 0,
     imageBase64: d.imageBase64 || "",
+    bleed: d.bleed || "none",
+    photoW: d.photoW || 0,
+    photoH: d.photoH || 0,
     prepItems: (d.prepItems || []).slice(),
   });
   renderPickerList(studioKey);
@@ -528,6 +531,37 @@ function buildSectionHeaderHTML(category, opts, groupIndex, groupCount, continue
     </div>`;
 }
 
+/* The slot a canapé photo sits in, in inches — a bleeding photo gets the wider
+   column because part of it hangs off the page. Keep in step with the
+   grid-template-columns on .canape-card in style.css. */
+const CANAPE_SLOT = { heightIn: 1.72, bleedWidthIn: 2.55, insetWidthIn: 1.95 };
+
+/* A real <img> at an explicitly computed size, not a CSS background.
+   Two reasons: html2canvas leaves a faint seam down the edge of a scaled
+   `background-size: contain` image, which showed up as a hairline beside every
+   plate in the exported PDF; and giving the element its size up front means the
+   page lays out identically whether or not the photo has finished decoding —
+   which pagination depends on, since it measures the page immediately. */
+function canapePhotoSize(item, bleed) {
+  const slotW = bleed === "none" ? CANAPE_SLOT.insetWidthIn : CANAPE_SLOT.bleedWidthIn;
+  const natW = Number(item.photoW) || 0;
+  const natH = Number(item.photoH) || 0;
+  if (!natW || !natH) return null;
+  const scale = Math.min(slotW / natW, CANAPE_SLOT.heightIn / natH);
+  return { widthIn: natW * scale, heightIn: natH * scale };
+}
+
+function canapePhotoHTML(item, bleed) {
+  if (!item.imageBase64) return "";
+  const size = canapePhotoSize(item, bleed);
+  if (!size) {
+    // Unknown intrinsic size (an older record): let the browser fit it.
+    const slotW = bleed === "none" ? CANAPE_SLOT.insetWidthIn : CANAPE_SLOT.bleedWidthIn;
+    return `<img class="canape-photo" src="${item.imageBase64}" alt="" style="max-width:${slotW}in;max-height:${CANAPE_SLOT.heightIn}in;">`;
+  }
+  return `<img class="canape-photo" src="${item.imageBase64}" alt="" style="width:${size.widthIn.toFixed(3)}in;height:${size.heightIn.toFixed(3)}in;">`;
+}
+
 function buildDishHTML(item, idx, opts) {
   const st = studioOf(opts.studioKey);
   const alignClass = opts.alignment === "left" ? "align-left" : "align-center";
@@ -539,9 +573,16 @@ function buildDishHTML(item, idx, opts) {
   const descHtml = `<span class="ddesc" ${ce} data-idx="${idx}" data-field="description" data-placeholder="Add a description…" style="${opts.italics ? "" : "font-style:normal;"}">${escapeHtml(item.description || "")}</span>`;
 
   if (st.photos && opts.photoLayout) {
-    return `<div class="canape-card ${alignClass}">
+    // These photos are cut off at the edge in the source book — they were shot
+    // and laid out to bleed off the page, so the plate runs past the trim
+    // rather than sitting whole inside a frame. Reproducing that here (each
+    // photo bleeding off the side it is actually cut on) is what makes the cut
+    // read as it does in print instead of as a slice through the middle of the
+    // page. `bleed` is stored per dish; a photo that isn't cut sits inset.
+    const bleed = item.bleed === "left" || item.bleed === "right" ? item.bleed : "none";
+    return `<div class="canape-card bleed-${bleed}">
       ${dropBtn}
-      <div class="canape-photo" style="${item.imageBase64 ? `background-image:url('${item.imageBase64}')` : ""}"></div>
+      <div class="canape-slot">${canapePhotoHTML(item, bleed)}</div>
       <div class="canape-text">${nameHtml}${allergHtml}${descHtml}</div>
     </div>`;
   }
@@ -637,6 +678,7 @@ function paginateUnits(units, opts) {
   pageEl.style.height = PAGE.heightIn + "in";
   const legendEl = probe.querySelector(".allergen-legend");
   const ruleEl = probe.querySelector(".menu-title-rule");
+  const titleEl = probe.querySelector(".menu-title");
   const blocks = Array.from(probe.querySelectorAll(".page-block"));
   const pageTop = pageEl.getBoundingClientRect().top;
   const usableBottom = legendEl.getBoundingClientRect().top - pageTop - 10;
@@ -647,6 +689,13 @@ function paginateUnits(units, opts) {
   // How much a repeated heading costs at the top of a continuation page.
   const firstHeaderIdx = units.findIndex((u) => u.kind === "section");
   const headerH = firstHeaderIdx === -1 ? 0 : (bottoms[firstHeaderIdx] - tops[firstHeaderIdx]) + 12;
+
+  // Only the first page carries the menu title, so every page after it has that
+  // much more room. Measuring it here rather than assuming one budget for all
+  // pages is what keeps a continuation page from silently losing a row.
+  const titleBlockH = titleEl
+    ? Math.max(0, contentStartTop - (titleEl.getBoundingClientRect().top - pageTop) - 7)
+    : 0;
   document.body.removeChild(probe);
 
   const usableHeight = usableBottom - contentStartTop;
@@ -664,7 +713,8 @@ function paginateUnits(units, opts) {
     const needBottom = (u.kind === "section" && i + 1 < units.length) ? bottoms[i + 1] : bottoms[i];
     const consumed = needBottom - pageStartTop;
 
-    if (current.length && consumed > usableHeight - reserved) {
+    const available = usableHeight + (pages.length ? titleBlockH : 0) - reserved;
+    if (current.length && consumed > available) {
       pages.push({ units: current, continuedSection });
       current = [];
       continuedSection = u.kind === "dish" ? liveSection : null;
@@ -723,6 +773,8 @@ function openDishModal(studioKey, dish) {
     : (d.cost ? [{ name: "(previous flat estimate)", qty: 1, unit: "portion", unitPrice: d.cost }] : []);
   const pendingPrepItems = (d.prepItems || []).slice();
   let pendingImage = d.imageBase64 || "";
+  let pendingPhotoW = Number(d.photoW) || 0;
+  let pendingPhotoH = Number(d.photoH) || 0;
   let chosenCat = d.category || sectionsOf(studioKey)[0] || "";
 
   openModal(`
@@ -780,14 +832,19 @@ function openDishModal(studioKey, dish) {
         ? `<div class="dm-photo"><img src="${pendingImage}" alt=""><button type="button" id="dm-image-remove" class="icon-btn icon-btn-danger">✕</button></div>`
         : `<div class="hint-text" style="margin-top:0;">No photo yet — choose a file below.</div>`;
       const removeBtn = document.getElementById("dm-image-remove");
-      if (removeBtn) removeBtn.addEventListener("click", () => { pendingImage = ""; renderImagePreview(); });
+      if (removeBtn) removeBtn.addEventListener("click", () => {
+        pendingImage = ""; pendingPhotoW = 0; pendingPhotoH = 0; renderImagePreview();
+      });
     }
     renderImagePreview();
     document.getElementById("dm-image-file").addEventListener("change", async (e) => {
       const file = e.target.files[0];
       if (!file) return;
       try {
-        pendingImage = await resizeImageFile(file, 640, 0.72);
+        const out = await resizeImageFile(file, 640, 0.72);
+        pendingImage = out.dataUri;
+        pendingPhotoW = out.width;
+        pendingPhotoH = out.height;
         renderImagePreview();
       } catch (err) {
         toast("Couldn't read that image: " + err.message, "error");
@@ -942,7 +999,11 @@ function openDishModal(studioKey, dish) {
         cost: Math.round(ingredientsTotal(cleanIngredients) * 100) / 100,
         prepItems: pendingPrepItems.map((p) => p.trim()).filter(Boolean),
       };
-      if (st.photos) payload.imageBase64 = pendingImage;
+      if (st.photos) {
+        payload.imageBase64 = pendingImage;
+        payload.photoW = pendingPhotoW;
+        payload.photoH = pendingPhotoH;
+      }
       if (isEdit) await db.collection(st.collection).doc(dish.id).update(payload);
       else await db.collection(st.collection).add(payload);
       closeModal();
@@ -1075,19 +1136,6 @@ async function exportMenuDocx(studioKey, btn) {
           },
         });
 
-    /* Word has no object-fit, so each photo's real aspect ratio has to be known
-       up front to size it without distortion. Decoding is async even for a data
-       URI, so resolve them all before building the document. */
-    const photoAspects = new Map();
-    if (st.photos && b.photoLayout) {
-      await Promise.all(b.canvas.filter((i) => i.imageBase64).map((i) => new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => { photoAspects.set(i.dishId, img.width / img.height); resolve(); };
-        img.onerror = () => resolve();
-        img.src = i.imageBase64;
-      })));
-    }
-
     /* Mirror the on-screen pagination so the Word file breaks in the same
        places as the preview and the PDF. */
     const opts = previewOptions(studioKey, { editable: false });
@@ -1109,19 +1157,20 @@ async function exportMenuDocx(studioKey, btn) {
     const pushDish = (item) => {
       if (st.photos && b.photoLayout && item.imageBase64) {
         try {
-          // Sized to fit inside the same 2.2 x 1.5in slot the page uses, keeping
-          // the photo's own shape — Word has no object-fit, so the box is
-          // computed here rather than letting a tall cone stretch to a square.
-          const ar = photoAspects.get(item.dishId) || 1.4;
-          const boxW = 2.2, boxH = 1.5;
-          const scale = Math.min(boxW / (boxH * ar), 1);
-          const w = boxH * ar * scale, h = boxH * scale;
+          // Word has no object-fit, so the photo is given the exact size the
+          // page computes for it — a tall cone stays tall instead of being
+          // stretched to fill a box. Word can't bleed off the page, so a
+          // bleeding photo is simply aligned to the side it bleeds toward.
+          const bleed = item.bleed === "left" || item.bleed === "right" ? item.bleed : "none";
+          const size = canapePhotoSize(item, bleed) || { widthIn: 2.2, heightIn: 1.5 };
+          const photoAlign = bleed === "left" ? AlignmentType.LEFT
+                          : bleed === "right" ? AlignmentType.RIGHT : align;
           children.push(new Paragraph({
-            alignment: align, spacing: { before: 120, after: 60 },
+            alignment: photoAlign, spacing: { before: 120, after: 60 },
             children: [new ImageRun({
               type: dataUriImageType(item.imageBase64),
               data: dataUriToBytes(item.imageBase64),
-              transformation: { width: inchesToPx(w), height: inchesToPx(h) },
+              transformation: { width: inchesToPx(size.widthIn), height: inchesToPx(size.heightIn) },
             })],
           }));
         } catch (imgErr) {

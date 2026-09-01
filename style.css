@@ -528,28 +528,42 @@ select.field { cursor: pointer; }
 .menu-page.theme-sand .page-number { left: 1.08in; }
 
 /* ---------------- Canapé photo cards ----------------
-   Three to a page, one per row: plate on the left at a size worth looking at,
-   name and description set beside it. Each card is its own element because
-   pagination splits between cards, so the vertical rhythm comes from the
-   margin rather than a grid gap.
+   Three to a page, one per row.
 
-   The photos are transparent cutouts, exactly as they are in the printed
-   canapé book — no tile, no plate-coloured backing, so the marble of the page
-   itself shows through and around them. `contain` keeps every plate whole
-   whatever its shape, from a wide board to a tall cone. */
+   The photos in the source book were laid out to BLEED off the page: each
+   plate runs past the trim rather than sitting whole inside a frame, and the
+   embedded bitmaps are cut off accordingly — those pixels don't exist. Framing
+   one in the middle of a page therefore shows the cut as a slice. So each card
+   pushes its photo off the page edge on the side it is actually cut on, the
+   way the printed book does, and .menu-page's overflow:hidden trims it. A
+   photo that isn't cut (`bleed-none`) sits inset like any other image.
+
+   The photo is a real <img> sized in inches by canapePhotoHTML(), never a
+   scaled CSS background — see the comment there. Nothing is ever cropped
+   further: whatever survives of a plate is always shown whole, wide board or
+   tall cone alike. */
 .menu-page .canape-grid { display: block; margin-bottom: 0.2in; }
 .menu-page .canape-card {
   position: relative;
-  display: grid; grid-template-columns: 2.35in 1fr; gap: 0 0.18in; align-items: center;
+  display: grid; gap: 0 0.2in; align-items: center;
 }
-/* Plates are pushed to the inside edge of their column and captions start at
-   the inside edge of theirs, so however differently shaped the photos are —
-   a wide board next to a tall cone — every card shares one straight gutter
-   down the middle of the page instead of drifting apart. */
-.menu-page .canape-photo {
-  width: 100%; height: 1.72in;
-  background: transparent right center/contain no-repeat;
-}
+.menu-page .canape-slot { height: 1.72in; display: flex; align-items: center; }
+.menu-page .canape-photo { display: block; }
+
+/* photo left, bleeding off the left trim */
+.menu-page .canape-card.bleed-left { grid-template-columns: 2.55in 1fr; margin-left: -0.6in; }
+.menu-page .canape-card.bleed-left .canape-slot { justify-content: flex-start; }
+
+/* photo right, bleeding off the right trim */
+.menu-page .canape-card.bleed-right { grid-template-columns: 1fr 2.55in; margin-right: -0.6in; }
+.menu-page .canape-card.bleed-right .canape-slot { order: 2; justify-content: flex-end; }
+.menu-page .canape-card.bleed-right .canape-text { order: 1; }
+
+/* uncut photo — no bleed, sits inside the margin */
+.menu-page .canape-card.bleed-none { grid-template-columns: 1fr 1.95in; }
+.menu-page .canape-card.bleed-none .canape-slot { order: 2; justify-content: center; }
+.menu-page .canape-card.bleed-none .canape-text { order: 1; }
+
 .menu-page .canape-text { font-size: 12px; line-height: 1.4; text-align: left; }
 .menu-page .canape-card .dname { font-size: 12px; letter-spacing: .4px; }
 .menu-page .canape-card .ddesc { font-size: 10.5px; margin-top: 4px; }

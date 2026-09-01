@@ -219,7 +219,10 @@ function resizeImageFile(file, maxWidth, quality) {
         const canvas = document.createElement("canvas");
         canvas.width = w; canvas.height = h;
         canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-        resolve(keepAlpha ? canvas.toDataURL("image/png") : canvas.toDataURL("image/jpeg", quality));
+        // The size comes back with the data URI: the menu page sizes each photo
+        // from it up front, so the layout is right before the image decodes.
+        resolve({ dataUri: keepAlpha ? canvas.toDataURL("image/png") : canvas.toDataURL("image/jpeg", quality),
+                  width: w, height: h });
       };
       img.src = reader.result;
     };

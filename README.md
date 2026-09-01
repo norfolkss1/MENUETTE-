@@ -159,12 +159,25 @@ what you don't want, reorder, rename the station heading on the page.
 
 **Canapé photos.** The 15 canapés are transparent cutouts, exactly as in the
 printed canapé book — no tile or backing colour, so the marble of the page
-shows through and around each plate. Three fit on a page: the plate at a size
-worth looking at on the left, name and description beside it, sharing one
-straight gutter down the page whatever shape the photos are. The **Show
-photos** toggle switches to a plain text list when you want a compact canapé
-menu instead. If you upload your own photo, a PNG stays a PNG (transparency
-preserved); anything else becomes a smaller JPEG.
+shows through and around each plate. Three fit on a page, one per row: the
+plate at a size worth looking at on one side, name and description on the other.
+
+Worth knowing, because it looks like a bug until you see why: **these photos
+were shot and laid out to bleed off the page.** In the printed book each plate
+runs past the trim, and the bitmaps are cut off to match — those pixels simply
+don't exist in any of the source files. Frame one in the middle of a page and
+the cut shows as a slice through the plate. So each card pushes its photo off
+the page edge on the side it is actually cut on, exactly as the book does, and
+the page's own edge does the trimming. Which side is stored per canapé as
+`bleed` (`left` / `right` / `none`); the two photos that aren't cut sit inset
+and whole. Menuette uses the least-cropped copy of each photo found across all
+94 canapé and DDR menu PDFs, which is why a few come from other proposals
+rather than from `CANAPE MENU ALL.pdf`.
+
+The **Show photos** toggle switches to a plain text list when you want a
+compact canapé menu instead. If you upload your own photo, a PNG stays a PNG
+(transparency preserved); anything else becomes a smaller JPEG, and either way
+its size is recorded so the page can lay out before the image decodes.
 
 ### Prep Vault
 
@@ -266,12 +279,19 @@ template of your own, drop its images in `assets/` (both `.jpg` and `.png`),
 add a `theme-yourname` block to `style.css` alongside the two existing ones,
 and point a studio at it.
 
-**One invariant worth knowing before you touch `.menu-page` CSS:** pagination
-is measured twice — once on the editable preview, once on the plain exported
-page — and the two must break in identical places, or the preview will promise
-a page count the PDF doesn't deliver. So nothing in editable mode may change
-the page's geometry: every editing affordance is absolutely positioned or a
-colour change only.
+**Two invariants worth knowing before you touch `.menu-page` CSS:**
+
+1. Pagination is measured twice — once on the editable preview, once on the
+   plain exported page — and the two must break in identical places, or the
+   preview will promise a page count the PDF doesn't deliver. So nothing in
+   editable mode may change the page's geometry: every editing affordance is
+   absolutely positioned or a colour change only.
+2. Menu photos are real `<img>` elements at a size computed in inches, never a
+   scaled CSS background. html2canvas leaves a faint seam down the edge of a
+   scaled `background-size: contain` image, which showed up as a hairline
+   beside every plate in the exported PDF; and sizing the element up front is
+   what lets pagination measure the page correctly whether or not the photo has
+   finished decoding.
 
 ## Firestore collections
 
