@@ -9,8 +9,16 @@
    so app.js must load first (see index.html).
    ========================================================================== */
 
-firebase.initializeApp(FIREBASE_CONFIG);
-const db = firebase.firestore();
+/* Firebase is set up during boot, not while this file is being parsed. If it
+   ran at the top and firebase-config.js hadn't loaded, app.js would throw
+   before it ever wired up the Unlock button — leaving a page that asks for a
+   code and then does nothing when you type one. Deferring it means the
+   dependency check below gets to run and say what's actually wrong. */
+let db = null;
+function initFirebase() {
+  firebase.initializeApp(FIREBASE_CONFIG);
+  db = firebase.firestore();
+}
 
 const CURRENCY = "AED";
 
@@ -270,8 +278,88 @@ function toast(msg, kind) {
   toastTimer = setTimeout(() => el.classList.add("hidden"), kind === "error" ? 5200 : 2600);
 }
 
-/* ============================== Boot ============================== */
+/* ============================== Boot ==============================
+   Everything the page needs, and where each piece comes from. This is checked
+   once the page has finished loading, so a file that didn't get uploaded — or
+   whose name differs in case, which matters on GitHub Pages but not on
+   Windows — names itself instead of failing silently. */
+const REQUIREMENTS = [
+  { global: "firebase",             from: "the Firebase SDK", remote: true },
+  { global: "FIREBASE_CONFIG",      from: "firebase-config.js" },
+  { global: "DEFAULT_CATEGORIES",   from: "data/default-categories.js" },
+  { global: "DEFAULT_MANAGER_PIN",  from: "data/default-categories.js" },
+  { global: "renderStudioShell",    from: "studio.js" },
+  { global: "renderPrepShell",      from: "prep.js" },
+  { global: "renderSavedShell",     from: "pages.js" },
+  { global: "renderApprovalsShell", from: "approvals.js" },
+  { global: "docx",                 from: "the Word export library", remote: true },
+  { global: "html2canvas",          from: "the PDF export library", remote: true },
+  { global: "jspdf",                from: "the PDF export library", remote: true },
+];
+
+/* Checked with `new Function` rather than `window[name]`: a top-level `const`
+   in a plain script becomes a global *lexical* binding, not a property of
+   window, so firebase-config.js's FIREBASE_CONFIG would look missing when it
+   is perfectly present. The names come from the table above, never from input. */
+function globalExists(name) {
+  try { return new Function(`return typeof ${name} !== "undefined"`)(); }
+  catch (e) { return false; }
+}
+
+function missingRequirements() {
+  const missing = [];
+  REQUIREMENTS.forEach((r) => {
+    if (!globalExists(r.global) && !missing.some((m) => m.from === r.from)) missing.push(r);
+  });
+  return missing;
+}
+
+function showBootError(missing) {
+  const localFiles = missing.filter((m) => !m.remote);
+  const remoteFiles = missing.filter((m) => m.remote);
+  document.getElementById("gate-screen").innerHTML = `
+    <div class="center-screen">
+      <div class="panel-card boot-error">
+        <div class="brand-mark">Menuette</div>
+        <div class="brand-sub">CHEF'S STUDIO</div>
+        <h3>Some files didn't load</h3>
+        ${localFiles.length ? `
+          <p>These are part of the app and are missing from where it's hosted:</p>
+          <ul>${localFiles.map((m) => `<li><code>${escapeHtml(m.from)}</code></li>`).join("")}</ul>
+          <p class="hint-text">Upload every file and folder from <code>menuette-web</code>, keeping
+          <code>data/</code> and <code>assets/</code> as folders. Names are case-sensitive once it's
+          online, even though they aren't on Windows.</p>
+        ` : ""}
+        ${remoteFiles.length ? `
+          <p>These load from the internet and didn't arrive:</p>
+          <ul>${remoteFiles.map((m) => `<li>${escapeHtml(m.from)}</li>`).join("")}</ul>
+          <p class="hint-text">Usually a dropped connection — reload the page. If it keeps happening,
+          something on the network may be blocking the CDN.</p>
+        ` : ""}
+        <button class="btn btn-primary btn-block" onclick="location.reload()">Reload</button>
+      </div>
+    </div>
+  `;
+  document.getElementById("gate-screen").classList.remove("hidden");
+  document.getElementById("app-shell").classList.add("hidden");
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+  const missing = missingRequirements();
+  if (missing.length) { showBootError(missing); return; }
+  try {
+    initFirebase();
+  } catch (err) {
+    showStatus(`Couldn't start Firebase: ${escapeHtml(err.message)}. Check the values in
+      <code>firebase-config.js</code> against your Firebase console.`);
+    showGate();
+    return;
+  }
+  // Wire the gate up front so it always works, even if the database is
+  // unreachable — the access codes fall back to the built-in defaults.
+  document.getElementById("gate-unlock-btn").addEventListener("click", handleUnlock);
+  document.getElementById("gate-pin").addEventListener("keydown", (e) => { if (e.key === "Enter") handleUnlock(); });
+
   showStatus("Connecting to the menu database…", "info");
   ensureConfigDoc().then(() => {
     hideStatus();
@@ -291,8 +379,6 @@ document.addEventListener("DOMContentLoaded", () => {
     showGate();
   });
 
-  document.getElementById("gate-unlock-btn").addEventListener("click", handleUnlock);
-  document.getElementById("gate-pin").addEventListener("keydown", (e) => { if (e.key === "Enter") handleUnlock(); });
   document.getElementById("lock-btn").addEventListener("click", lockApp);
   document.querySelectorAll(".sb-item").forEach((btn) => {
     btn.addEventListener("click", () => switchView(btn.dataset.view));

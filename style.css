@@ -121,6 +121,18 @@ b { font-weight: 600; }
 .brand-mark { font-family: var(--font-display); font-size: 32px; color: var(--ink); }
 .brand-sub { font-size: 10px; letter-spacing: 4.5px; color: var(--muted); margin: 6px 0 28px; }
 
+/* ---------------- Boot failure ---------------- */
+.panel-card.boot-error { max-width: 460px; text-align: left; }
+.boot-error .brand-mark, .boot-error .brand-sub { text-align: center; }
+.boot-error h3 { margin: 4px 0 10px; }
+.boot-error p { font-size: 13px; color: var(--ink-2); line-height: 1.6; margin: 0 0 10px; }
+.boot-error ul { margin: 0 0 12px; padding-left: 20px; }
+.boot-error li { font-size: 13px; color: var(--ink-2); margin-bottom: 4px; }
+.boot-error code {
+  background: var(--panel-3); padding: 1px 5px; border-radius: 4px;
+  font-size: 12.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
 /* ---------------- Fields ---------------- */
 .field {
   width: 100%; background: var(--panel); border: 1px solid var(--border-strong);

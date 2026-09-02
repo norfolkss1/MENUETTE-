@@ -79,6 +79,49 @@ That URL never sleeps — it's a static file, served instantly every time.
 
 ---
 
+## If the page asks for a code and the button does nothing
+
+That means one of the app's files didn't reach the host, so the page's
+JavaScript stopped before it could wire the button up. Newer builds say so on
+screen and name the file; older ones just sit there.
+
+**Every one of these has to be uploaded, with the folders kept as folders:**
+
+```
+index.html
+app.js
+studio.js
+prep.js
+pages.js
+approvals.js
+firebase-config.js        <- easy to miss; the app cannot start without it
+style.css
+data/default-categories.js
+assets/border-strip.jpg
+assets/border-strip.png
+assets/marble-bg.jpg
+assets/marble-bg.png
+assets/me-dubai-logo.png
+```
+
+Things worth checking, roughly in order of how often they're the culprit:
+
+1. **`firebase-config.js` is missing.** Dragging files into GitHub's uploader
+   skips it if it was ever git-ignored. Without it the app can't start at all.
+2. **The `data/` or `assets/` folder didn't come along.** Drag the *folders*,
+   not just the loose files, or use "Add file → Upload files" and drop the
+   whole `menuette-web` folder in one go.
+3. **Case.** GitHub Pages is case-sensitive; Windows isn't. `App.js` works on
+   your laptop and 404s online.
+4. **Wrong address.** The Pages address is
+   `https://<your-username>.github.io/<repo-name>/`, not the `github.com/...`
+   page where the code lives.
+5. **Pages hasn't finished building.** Settings → Pages shows the status; the
+   first build takes a couple of minutes.
+
+To see exactly what's wrong, open the page and press <kbd>F12</kbd> → Console.
+A red `404` line names the file that's missing.
+
 ## If dishes/menus don't show up
 
 A banner appears at the top of the page explaining the problem.
