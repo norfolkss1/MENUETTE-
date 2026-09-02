@@ -53,12 +53,15 @@ Click **Publish**. This is UI-level access control (the PIN gate), not real
 per-user security — fine for an internal tool on an unlisted URL, don't post
 the link publicly.
 
-### Step 5 — Set your own PIN
+### Step 5 — Set your own access codes
 
-The app seeds itself with PIN `2580` the first time it runs. Once you're in,
-there's no PIN-change screen yet — to change it, open Firebase console →
-**Firestore Database → config → menuSettings** and edit the `pin` field
-directly. (Ask me to add an in-app "change PIN" control if you'd like one.)
+The app seeds itself with two codes the first time it runs:
+
+- chef code **`2580`** — opens the whole studio
+- manager code **`1379`** — opens the whole studio and can approve menus
+
+Change both from inside the app: sign in with the manager code, then
+**Approvals → 🔑 Access codes**. Do that before anyone else gets the link.
 
 ### Step 6 — Deploy for free — GitHub Pages (simplest, no CLI needed)
 
@@ -91,10 +94,11 @@ A banner appears at the top of the page explaining the problem.
 ```
 index.html                 the app shell (gate, sidebar nav, one div per view)
 style.css                  all styling + the ME Dubai print/preview page layout
-app.js                     core: config, state, boot, navigation, shared helpers
+app.js                     core: config, state, boot, navigation, roles, shared helpers
 studio.js                  the shared menu studio — DDR, Buffet and Canapé all run on it
 prep.js                    Prep Vault (by-dish + library) and the prep sheet exports
 pages.js                   Saved Menus and Import Menu
+approvals.js               send for approval, approve / send back, the archive
 firebase-config.js         your Firebase project config (fill this in)
 data/default-categories.js seed sections + seed PIN (only used on the very first run)
 assets/border-strip.jpg    the sand-swirl strip from the Word template (DDR + Buffet pages)
@@ -104,9 +108,9 @@ assets/marble-bg.png       (see "A note on the Word export" below)
 assets/me-dubai-logo.png   the "ME DUBAI" logo
 ```
 
-`app.js` must load first — the other three read the state and helpers it
-defines. All four are plain scripts sharing one global scope; there is no
-bundler and nothing to build.
+`app.js` must load first — the others read the state and helpers it defines.
+They are plain scripts sharing one global scope; there is no bundler and
+nothing to build.
 
 ## Features
 
@@ -205,21 +209,57 @@ named at the top so you know what's missing rather than it silently vanishing.
 
 - **📕 PDF** downloads a real `.pdf` — no print dialog. It's a high-resolution
   snapshot of the exact live preview, one PDF page per preview page.
-- **📄 Word** asks which of two files you want, because they answer different
-  needs and no Word file can be both:
-  - **Designed page** — the menu exactly as the preview shows it: fonts,
-    spacing, marble, logo, everything. Each page goes in as full-page artwork
-    anchored to the sheet, so Word can't reflow it. What you send a client.
-    The text is a picture and can't be retyped.
-  - **Editable text** — real Word paragraphs anyone can edit, inside the
-    branded frame with the logo, breaking pages where the preview does. The
-    layout is Word's own, so it won't match the preview line for line. What you
-    send a colleague who has to change the wording.
+- **📄 Word** asks which of two files you want. **Both keep the design** — the
+  difference is only whether the words can be edited:
+  - **Editable menu** (the default) — real Word text anyone can retype, in the
+    same fonts, sizes, colours, letter-spacing and spacing as the preview, with
+    the section rules, the border, the logo and the allergen legend repeating
+    on every page. Canapé cards come through as a photo beside its caption
+    (a borderless table — the only way Word will sit text next to a picture and
+    leave both editable). Word does its own line-breaking, so pages can fall
+    slightly differently from the preview.
+  - **Exact copy of the preview** — pixel-for-pixel what's on the canvas,
+    placed as full-page artwork anchored to the sheet so nothing can shift.
+    Nothing can be edited either.
 
-  Your last choice is remembered per studio. A designed 2-page DDR menu is
-  around 750KB; a 5-page canapé menu with photos, about 4MB.
+  Your last choice is remembered per studio. An editable 2-page DDR menu is
+  about 150KB; the exact-copy version of the same menu, about 750KB.
+
+  The page's typography lives in the `TYPE` table at the top of `studio.js`,
+  lifted from the `.menu-page` rules in `style.css`. Change one, change the
+  other. It assumes **Playfair Display** and **DM Sans** are installed on the
+  machine opening the file — they are on yours; on a machine without them Word
+  substitutes something close.
 - **🖨️ Print** is separate from both — the browser print dialog on the styled
   page, if you'd rather print physically or use the OS "Save as PDF".
+
+### Approvals
+
+A menu can be sent for approval instead of just saved. There are two access
+codes, and they are the only difference between the two roles:
+
+- The **chef code** opens the whole studio.
+- The **manager code** opens the whole studio *and* can approve.
+
+Everything else — every studio, the Prep Vault, exports, imports — is identical
+for both. Whoever set the app up can change either code from **Approvals →
+🔑 Access codes** (manager only). If both codes are set to the same value,
+everyone gets the manager role rather than approvals being locked away.
+
+**📩 Send for approval** sits next to *Save menu* in every studio. It saves the
+menu, attaches an optional note, and moves it to **Waiting**. From there a
+manager can:
+
+- **✓ Approve** — the menu is signed off and a **frozen copy** is written to the
+  archive. That copy is a snapshot, not a link: if the menu is edited afterwards
+  the archive still holds exactly what was approved, which is the entire point
+  of keeping one. Opening something from the archive gives you an unlinked
+  copy, so signing-off history can't be rewritten by editing it.
+- **Send back** — with a note saying what needs changing. It moves to
+  **Sent back**, and the note shows on the card for whoever built it.
+
+The sidebar's Approvals badge turns copper when something is waiting. Saved
+Menus shows each menu's status alongside it.
 
 ### Saved Menus and Import
 
@@ -312,7 +352,9 @@ and point a studio at it.
 dishes          DDR dish library
 buffetDishes    Buffet dish library
 canapeDishes    Canapé dish library (each doc also carries its photo, embedded)
-menus           saved menus from all three studios (a `studio` field says which)
+menus           saved menus from all three studios (a `studio` field says which,
+                and `status` says draft / pending / approved / changes)
+menuArchive     frozen copies of approved menus, as signed off
 prepVault       the reusable prep-list library
 buffetStationBlocks  ready-made buffet stations, as they ran on real menus
 priceBook       supplier price list, backing the ingredient search

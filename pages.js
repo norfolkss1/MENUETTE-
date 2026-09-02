@@ -59,6 +59,7 @@ function renderSavedList() {
                 <span class="badge">${st.icon} ${escapeHtml(st.short)}</span>
                 <span class="badge badge-quiet">${plural(items.length, "dish", "dishes")}</span>
                 ${m.totalCost ? `<span class="badge badge-quiet">${formatCurrency(m.totalCost)}/cover</span>` : ""}
+                ${statusBadge(m)}
               </div>
             </div>
           </header>

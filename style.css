@@ -723,6 +723,30 @@ select.field { cursor: pointer; }
 .tie-row-name { font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 6px; }
 .tie-row-meta { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
 
+/* ---------------- Approvals ---------------- */
+.role-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--panel-3); color: var(--muted);
+  border-radius: 999px; padding: 7px 13px; font-size: 12.5px; white-space: nowrap;
+}
+.role-pill b { color: var(--ink); font-weight: 700; }
+
+.badge-danger { background: var(--danger-tint); color: var(--danger); }
+
+/* A waiting-approval count is the one number in the sidebar worth chasing, so
+   it reads as a live alert rather than another quiet total. */
+.sb-count.sb-count-alert { background: var(--accent); color: #fff; }
+.sb-role-line { color: var(--sb-dim); }
+.sb-role-line span { color: var(--sb-ink); font-weight: 600; }
+
+.review-note {
+  margin-top: 8px; padding: 8px 11px; border-radius: var(--r-sm);
+  background: var(--panel-2); border-left: 2px solid var(--border-strong);
+  font-size: 12.5px; color: var(--ink-2); line-height: 1.5;
+}
+.review-note-back { background: var(--warn-tint); border-left-color: var(--warn); color: #6E4E0E; }
+.review-note-back b { color: var(--warn); }
+
 /* ---------------- Choice list (Word export flavour) ---------------- */
 .choice-list { display: flex; flex-direction: column; gap: 10px; margin: 16px 0 6px; }
 .choice {

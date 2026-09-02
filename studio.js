@@ -28,6 +28,7 @@ function renderStudioShell(studioKey) {
           <button class="btn btn-ghost btn-sm" data-act="print">🖨️ Print</button>
           <button class="btn btn-outline btn-sm" data-act="docx">📄 Word</button>
           <button class="btn btn-outline btn-sm" data-act="pdf">📕 PDF</button>
+          <button class="btn btn-outline btn-sm" data-act="approval">📩 Send for approval</button>
           <button class="btn btn-primary btn-sm" data-act="save">💾 Save menu</button>
         </div>
       </header>
@@ -136,6 +137,7 @@ function renderStudioShell(studioKey) {
 
   /* --- top actions --- */
   el.querySelector('[data-act="save"]').addEventListener("click", () => saveCurrentMenu(studioKey));
+  el.querySelector('[data-act="approval"]').addEventListener("click", () => submitForApproval(studioKey));
   el.querySelector('[data-act="docx"]').addEventListener("click", (e) => openWordExportModal(studioKey, e.currentTarget));
   el.querySelector('[data-act="pdf"]').addEventListener("click", (e) => exportMenuPdf(studioKey, e.currentTarget));
   el.querySelector('[data-act="print"]').addEventListener("click", () => printMenu(studioKey));
@@ -1004,14 +1006,13 @@ function openDishModal(studioKey, dish) {
   });
 }
 
-/* ============================== Save / load a menu ============================== */
-async function saveCurrentMenu(studioKey) {
+/* ============================== Save / load a menu ==============================
+   One writer for both "Save menu" and "Send for approval" — `extra` carries the
+   approval fields when there are any, so the two paths can never drift apart on
+   what a saved menu actually contains. */
+async function persistMenu(studioKey, name, extra) {
   const b = builderOf(studioKey);
-  const st = studioOf(studioKey);
-  if (!b.canvas.length) { toast(`Add at least one ${st.noun.toLowerCase()} before saving.`, "error"); return; }
-  const name = prompt("Name this menu:", b.filename || b.titleText || `Untitled ${st.short} menu`);
-  if (!name) return;
-  const payload = {
+  const payload = Object.assign({
     studio: studioKey,
     name,
     items: b.canvas,
@@ -1024,21 +1025,38 @@ async function saveCurrentMenu(studioKey) {
     sectionOrder: getSectionOrder(studioKey),
     totalCost: b.canvas.reduce((s, i) => s + (Number(i.cost) || 0), 0),
     updatedAt: Date.now(),
-  };
+  }, extra || {});
+
+  if (b.activeMenuId) {
+    // set() would wipe approval fields that aren't in this payload
+    await db.collection("menus").doc(b.activeMenuId).update(payload);
+  } else {
+    const ref = await db.collection("menus").add(Object.assign({ status: "draft" }, payload));
+    b.activeMenuId = ref.id;
+  }
+  b.filename = b.filename || name;
+  return b.activeMenuId;
+}
+
+async function saveCurrentMenu(studioKey) {
+  const b = builderOf(studioKey);
+  const st = studioOf(studioKey);
+  if (!b.canvas.length) { toast(`Add at least one ${st.noun.toLowerCase()} before saving.`, "error"); return; }
+  const name = prompt("Name this menu:", b.filename || b.titleText || `Untitled ${st.short} menu`);
+  if (!name) return;
   try {
-    if (b.activeMenuId) await db.collection("menus").doc(b.activeMenuId).set(payload);
-    else {
-      const ref = await db.collection("menus").add(payload);
-      b.activeMenuId = ref.id;
-    }
+    await persistMenu(studioKey, name);
     toast(`Saved “${name}”.`);
   } catch (err) {
     toast("Couldn't save: " + err.message, "error");
   }
 }
 
-function loadMenu(id) {
-  const m = state.menus.find((x) => x.id === id);
+/* Loads a saved menu into its studio. Pass `snapshot` instead of an id to open
+   an archived copy — it comes in as a new, unlinked draft so that editing it
+   can't rewrite what was signed off. */
+function loadMenu(id, snapshot) {
+  const m = snapshot || state.menus.find((x) => x.id === id);
   if (!m) return;
   const studioKey = STUDIOS[m.studio] ? m.studio : "ddr";
   const b = freshBuilder(studioKey);
@@ -1051,11 +1069,11 @@ function loadMenu(id) {
   b.sectionLabels = m.sectionLabels || {};
   b.sectionOrder = m.sectionOrder || [];
   b.filename = m.name || "";
-  b.activeMenuId = m.id;
+  b.activeMenuId = snapshot ? null : m.id;
   b.pane = "canvas";
   state.builders[studioKey] = b;
   switchView(studioKey);
-  toast(`Loaded “${m.name}”.`);
+  toast(snapshot ? `Opened a copy of “${m.name}”.` : `Loaded “${m.name}”.`);
 }
 
 /* The marble page's footer mark — smaller and centred, unlike the sand
@@ -1090,6 +1108,39 @@ function toPngDataUri(dataUri, targetWidthPx) {
   });
 }
 
+/* ==========================================================================
+   PAGE TYPOGRAPHY — the numbers the editable Word export is built from.
+   Every value here is lifted straight from the .menu-page rules in style.css
+   so the .docx carries the same fonts, sizes, colours, letter-spacing and
+   vertical rhythm as the preview. Change one, change the other.
+
+   Word's units: font sizes are half-points, spacing and letter-spacing are
+   twentieths of a point. The page is designed in CSS pixels at 96dpi, so
+   px x 1.5 gives half-points and px x 15 gives twentieths.
+   ========================================================================== */
+const halfPt = (px) => Math.round(px * 1.5);
+const twip = (px) => Math.round(px * 15);
+
+const TYPE = {
+  displayFont: "Playfair Display",
+  bodyFont: "DM Sans",
+  ink: "2C1A12",          /* --page-ink   */
+  accent: "A0522D",       /* --page-accent */
+  muted: "8B6A4A",        /* --page-muted  */
+  rule: "E8D9C5",         /* --page-border */
+  /* the title rule is the accent at 55% over the paper — flattened, since
+     Word borders have no opacity */
+  titleRule: "CA9E88",
+  titleRuleWidthIn: 0.479,
+  title: { px: 22, marblePx: 20, letterPx: 1.5, afterPx: 4 },
+  titleRuleSpace: { beforePx: 10, afterPx: 20, marbleBeforePx: 8, marbleAfterPx: 14 },
+  section: { px: 12.5, letterPx: 2, beforePx: 20, afterPx: 15 },
+  dish: { px: 12.5, canapePx: 12, beforePx: 8 },
+  allergens: { px: 10, canapePx: 9.5 },
+  desc: { px: 11, canapePx: 10.5, beforePx: 2 },
+  legend: { px: 8.5, letterPx: 0.4, beforePx: 22 },
+};
+
 /* ============================== Export: Word (.docx) ==============================
    Two Word files are possible and they answer different needs, so the studio
    asks which one rather than guessing:
@@ -1105,22 +1156,22 @@ function openWordExportModal(studioKey, btn) {
   const b = builderOf(studioKey);
   const st = studioOf(studioKey);
   if (!b.canvas.length) { toast(`Add at least one ${st.noun.toLowerCase()} before exporting.`, "error"); return; }
-  const chosen = b.wordStyle === "text" ? "text" : "designed";
+  const chosen = b.wordStyle === "designed" ? "designed" : "text";
 
   openModal(`
     <h3>Export to Word</h3>
-    <p class="hint-text" style="margin-top:0;">Two kinds of Word file — pick whichever suits what you're about to do with it.</p>
+    <p class="hint-text" style="margin-top:0;">Both keep the design — the difference is whether the words can be edited.</p>
     <div class="choice-list">
-      <button class="choice ${chosen === "designed" ? "is-chosen" : ""}" data-word="designed">
-        <span class="choice-title">Designed page</span>
-        <span class="choice-note">The menu exactly as you see it in the preview — fonts, spacing, marble, logo, everything. Best for sending to a client. The text is artwork, so it can't be retyped in Word.</span>
-      </button>
       <button class="choice ${chosen === "text" ? "is-chosen" : ""}" data-word="text">
-        <span class="choice-title">Editable text</span>
-        <span class="choice-note">Real Word paragraphs anyone can edit, inside the branded border with the logo. The layout is Word's own, so it won't match the preview line for line.</span>
+        <span class="choice-title">Editable menu</span>
+        <span class="choice-note">Real Word text anyone can retype, in the same fonts, sizes, colours and spacing as the preview, with the border and logo. Word does its own line-breaking, so pages may fall slightly differently.</span>
+      </button>
+      <button class="choice ${chosen === "designed" ? "is-chosen" : ""}" data-word="designed">
+        <span class="choice-title">Exact copy of the preview</span>
+        <span class="choice-note">Pixel-for-pixel what you see on the canvas, placed as artwork. Nothing can shift — and nothing can be edited either.</span>
       </button>
     </div>
-    <p class="hint-text">Either way, <b>📕 PDF</b> and <b>🖨️ Print</b> always give you the designed page.</p>
+    <p class="hint-text"><b>📕 PDF</b> and <b>🖨️ Print</b> are always pixel-exact.</p>
   `);
 
   document.querySelectorAll("[data-word]").forEach((el) => el.addEventListener("click", () => {
@@ -1210,7 +1261,11 @@ async function exportMenuDocxText(studioKey, btn) {
     const {
       Document, Packer, Paragraph, TextRun, ImageRun, Header, Footer, AlignmentType,
       HorizontalPositionRelativeFrom, VerticalPositionRelativeFrom, TextWrappingType, TextWrappingSide, PageBreak,
+      Table, TableRow, TableCell, WidthType, VerticalAlign, BorderStyle,
     } = docx;
+    const NO_BORDER = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
+    const marble = st.theme === "marble";
+    const photoCards = st.photos && b.photoLayout;
 
     const inchesToTwip = (n) => Math.round(n * 1440);
     const inchesToEmu = (n) => Math.round(n * 914400);
@@ -1256,7 +1311,7 @@ async function exportMenuDocxText(studioKey, btn) {
     /* Word gets its own PNG copy of each photo, at ~150dpi for the size it is
        placed at — see toPngDataUri(). */
     const wordPhotos = new Map();
-    if (st.photos && b.photoLayout) {
+    if (photoCards) {
       await Promise.all(b.canvas.filter((i) => i.imageBase64).map(async (i) => {
         const size = canapePhotoSize(i);
         const png = await toPngDataUri(i.imageBase64, Math.round((size ? size.widthIn : 2.3) * 150));
@@ -1269,45 +1324,123 @@ async function exportMenuDocxText(studioKey, btn) {
     const opts = previewOptions(studioKey, { editable: false });
     const pages = paginateUnits(buildUnits(b.canvas, opts), opts);
 
+    /* --- the page's own typography, rebuilt as real Word runs --- */
+    const textWidthIn = PAGE.widthIn
+      - (marble ? 0.6 : PAGE.marginLeftIn)
+      - (marble ? 0.6 : PAGE.marginRightIn);
+    const dishPx = photoCards ? TYPE.dish.canapePx : TYPE.dish.px;
+    const descPx = photoCards ? TYPE.desc.canapePx : TYPE.desc.px;
+    const allergPx = photoCards ? TYPE.allergens.canapePx : TYPE.allergens.px;
+
     const children = [];
     const titleText = b.uppercase ? (b.titleText || "").toUpperCase() : (b.titleText || "");
     children.push(new Paragraph({
-      alignment: align, spacing: { after: 200 },
-      children: [new TextRun({ text: titleText || st.defaultTitle, bold: true, size: 44 })],
+      alignment: align,
+      spacing: { after: twip(TYPE.title.afterPx) },
+      children: [new TextRun({
+        text: titleText || st.defaultTitle,
+        font: TYPE.displayFont, bold: true, color: TYPE.ink,
+        size: halfPt(marble ? TYPE.title.marblePx : TYPE.title.px),
+        characterSpacing: twip(TYPE.title.letterPx),
+      })],
+    }));
+
+    // The short rule under the title is an empty paragraph wearing a bottom
+    // border, indented until the border is only as wide as the rule itself.
+    const ruleIndentIn = Math.max(0, textWidthIn - TYPE.titleRuleWidthIn);
+    children.push(new Paragraph({
+      indent: b.alignment === "left"
+        ? { right: inchesToTwip(ruleIndentIn) }
+        : { left: inchesToTwip(ruleIndentIn / 2), right: inchesToTwip(ruleIndentIn / 2) },
+      spacing: {
+        before: twip(marble ? TYPE.titleRuleSpace.marbleBeforePx : TYPE.titleRuleSpace.beforePx),
+        after: twip(marble ? TYPE.titleRuleSpace.marbleAfterPx : TYPE.titleRuleSpace.afterPx),
+      },
+      border: { bottom: { color: TYPE.titleRule, style: BorderStyle.SINGLE, size: 12, space: 0 } },
+      children: [new TextRun({ text: "", size: 2 })],
     }));
 
     const sectionParagraph = (category) => {
       const secLabel = sectionLabelFor(category, opts);
-      return secLabel
-        ? new Paragraph({ alignment: align, spacing: { before: 200, after: 80 }, children: [new TextRun({ text: secLabel, bold: true, size: 26 })] })
-        : null;
+      if (!secLabel) return null;
+      return new Paragraph({
+        alignment: align,
+        spacing: { before: twip(TYPE.section.beforePx), after: twip(TYPE.section.afterPx) },
+        border: { bottom: { color: TYPE.rule, style: BorderStyle.SINGLE, size: 6, space: 4 } },
+        children: [new TextRun({
+          text: secLabel, font: TYPE.displayFont, bold: true, color: TYPE.accent,
+          size: halfPt(TYPE.section.px), characterSpacing: twip(TYPE.section.letterPx),
+        })],
+      });
     };
+    const nameRunsFor = (item) => {
+      const name = b.uppercase ? item.name.toUpperCase() : item.name;
+      const runs = [new TextRun({ text: name, font: TYPE.bodyFont, bold: true, color: TYPE.ink, size: halfPt(dishPx) })];
+      if (item.allergens) {
+        runs.push(new TextRun({
+          text: "  [" + item.allergens + "]", font: TYPE.bodyFont, italics: true,
+          color: TYPE.muted, size: halfPt(allergPx),
+        }));
+      }
+      return runs;
+    };
+    const descParagraph = (item, alignment) => new Paragraph({
+      alignment, spacing: { before: twip(TYPE.desc.beforePx) },
+      children: [new TextRun({
+        text: item.description, font: TYPE.bodyFont, italics: b.italics,
+        color: TYPE.muted, size: halfPt(descPx),
+      })],
+    });
+    const photoParagraph = (item, alignment) => {
+      // Word has no object-fit, so the photo is given the exact size the page
+      // computes for it — a tall cone stays tall instead of filling a box.
+      const size = canapePhotoSize(item) || { widthIn: 2.2, heightIn: 1.5 };
+      return new Paragraph({
+        alignment,
+        children: [new ImageRun({
+          type: "png",
+          data: dataUriToBytes(wordPhotos.get(item.dishId) || item.imageBase64),
+          transformation: { width: inchesToPx(size.widthIn), height: inchesToPx(size.heightIn) },
+        })],
+      });
+    };
+
     const pushDish = (item) => {
-      if (st.photos && b.photoLayout && item.imageBase64) {
+      // A canapé card is a photo beside its caption, which in Word means a
+      // borderless two-cell table — the only way to sit text next to a picture
+      // and have both stay editable.
+      if (photoCards && item.imageBase64) {
         try {
-          // Word has no object-fit, so the photo is given the exact size the
-          // page computes for it — a tall cone stays tall instead of being
-          // stretched to fill a box.
-          const size = canapePhotoSize(item) || { widthIn: 2.2, heightIn: 1.5 };
-          children.push(new Paragraph({
-            alignment: align, spacing: { before: 120, after: 60 },
-            children: [new ImageRun({
-              type: "png",
-              data: dataUriToBytes(wordPhotos.get(item.dishId) || item.imageBase64),
-              transformation: { width: inchesToPx(size.widthIn), height: inchesToPx(size.heightIn) },
-            })],
+          const caption = [new Paragraph({ alignment: AlignmentType.LEFT, children: nameRunsFor(item) })];
+          if (item.description) caption.push(descParagraph(item, AlignmentType.LEFT));
+          children.push(new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            borders: { top: NO_BORDER, bottom: NO_BORDER, left: NO_BORDER, right: NO_BORDER,
+                       insideHorizontal: NO_BORDER, insideVertical: NO_BORDER },
+            rows: [new TableRow({ children: [
+              new TableCell({
+                width: { size: inchesToTwip(CANAPE_SLOT.widthIn), type: WidthType.DXA },
+                verticalAlign: VerticalAlign.CENTER,
+                margins: { top: twip(7), bottom: twip(7), right: inchesToTwip(0.22) },
+                children: [photoParagraph(item, AlignmentType.CENTER)],
+              }),
+              new TableCell({
+                verticalAlign: VerticalAlign.CENTER,
+                margins: { top: twip(7), bottom: twip(7) },
+                children: caption,
+              }),
+            ] })],
           }));
+          return;
         } catch (imgErr) {
-          console.warn("Skipped a canapé photo in the Word export:", imgErr.message);
+          console.warn("Fell back to a plain canapé row in the Word export:", imgErr.message);
         }
       }
-      const name = b.uppercase ? item.name.toUpperCase() : item.name;
-      const nameRuns = [new TextRun({ text: name, bold: true, size: 22 })];
-      if (item.allergens) nameRuns.push(new TextRun({ text: `  [${item.allergens}]`, italics: true, size: 18 }));
-      children.push(new Paragraph({ alignment: align, children: nameRuns }));
-      if (item.description) {
-        children.push(new Paragraph({ alignment: align, spacing: { after: 120 }, children: [new TextRun({ text: item.description, italics: b.italics, size: 20 })] }));
-      }
+      children.push(new Paragraph({
+        alignment: align, spacing: { before: twip(TYPE.dish.beforePx) },
+        children: nameRunsFor(item),
+      }));
+      if (item.description) children.push(descParagraph(item, align));
     };
 
     pages.forEach((page, pi) => {
@@ -1326,22 +1459,34 @@ async function exportMenuDocxText(studioKey, btn) {
       });
     });
 
-    children.push(new Paragraph({
+    // The legend belongs to the page, not to the end of the menu — putting it
+    // in the footer is what makes it repeat on every sheet, as it does on the
+    // canvas, instead of appearing once after the last dish.
+    const legendParagraph = new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 300 },
-      border: { top: { color: "E8D9C5", space: 4, style: "single", size: 4 } },
-      children: [new TextRun({ text: "Allergens: D — Dairy   ·   G — Gluten   ·   S — Seafood   ·   N — Nuts", size: 14, color: "8B6A4A" })],
-    }));
+      border: { top: { color: TYPE.rule, space: 6, style: BorderStyle.SINGLE, size: 6 } },
+      children: [new TextRun({
+        text: "Allergens: D — Dairy   ·   G — Gluten   ·   S — Seafood   ·   N — Nuts",
+        font: TYPE.bodyFont, color: TYPE.muted,
+        size: halfPt(TYPE.legend.px), characterSpacing: twip(TYPE.legend.letterPx),
+      })],
+    });
 
     const doc = new Document({
+      // Anything not styled run-by-run still lands in the page's own body face
+      // rather than Word's default Calibri.
+      styles: { default: { document: { run: { font: TYPE.bodyFont, color: TYPE.ink, size: halfPt(dishPx) } } } },
       sections: [{
         properties: {
           page: {
             size: { width: inchesToTwip(PAGE.widthIn), height: inchesToTwip(PAGE.heightIn) },
             margin: {
-              top: inchesToTwip(PAGE.marginTopIn), bottom: inchesToTwip(PAGE.marginBottomIn),
-              left: inchesToTwip(st.theme === "marble" ? 0.6 : PAGE.marginLeftIn),
-              right: inchesToTwip(st.theme === "marble" ? 0.6 : PAGE.marginRightIn),
+              top: inchesToTwip(marble ? 0.46 : PAGE.marginTopIn), bottom: inchesToTwip(PAGE.marginBottomIn),
+              left: inchesToTwip(marble ? 0.6 : PAGE.marginLeftIn),
+              right: inchesToTwip(marble ? 0.6 : PAGE.marginRightIn),
+              // where the footer's legend sits, matching .allergen-legend's
+              // offset from the foot of the page
+              footer: inchesToTwip(marble ? 1.02 : 1.05),
             },
           },
         },
@@ -1350,7 +1495,7 @@ async function exportMenuDocxText(studioKey, btn) {
         headers: { default: new Header({ children: [new Paragraph({ children: [frameImage] })] }) },
         footers: {
           default: new Footer({
-            children: [new Paragraph({ children: [new ImageRun({
+            children: [legendParagraph, new Paragraph({ children: [new ImageRun({
               type: "png", data: logoBuf,
               transformation: { width: inchesToPx(logo.widthIn), height: inchesToPx(logo.heightIn) },
               floating: {

@@ -20,7 +20,7 @@
       <input id="gate-pin" class="field" placeholder="Access code" type="password" inputmode="numeric" autocomplete="off">
       <div id="gate-error" class="error-text"></div>
       <button id="gate-unlock-btn" class="btn btn-primary btn-block">Unlock</button>
-      <div class="hint-text">Ask whoever set up Menuette for the access code.</div>
+      <div class="hint-text">Chef code or manager code — both open the studio; the manager code can also approve menus.</div>
     </div>
   </div>
 </div>
@@ -44,12 +44,14 @@
     <div class="sb-group-label">Kitchen</div>
     <nav class="sb-nav">
       <button class="sb-item" data-view="prep"><span class="sb-ico">🧾</span><span>Prep Vault</span><span class="sb-count" id="sb-prep-count"></span></button>
+      <button class="sb-item" data-view="approvals"><span class="sb-ico">✅</span><span>Approvals</span><span class="sb-count" id="sb-approvals-count"></span></button>
       <button class="sb-item" data-view="saved"><span class="sb-ico">📚</span><span>Saved Menus</span><span class="sb-count" id="sb-saved-count"></span></button>
       <button class="sb-item" data-view="import"><span class="sb-ico">📥</span><span>Import Menu</span></button>
     </nav>
 
     <div class="sb-foot">
       <div class="sb-stat"><span id="sb-dish-total">0</span> dishes in vault</div>
+      <div class="sb-stat sb-role-line">Signed in as <span id="sb-role"></span></div>
       <button id="lock-btn" class="btn btn-ghost btn-sm btn-block">Lock studio</button>
     </div>
   </aside>
@@ -59,6 +61,7 @@
     <div id="view-buffet" class="hidden"></div>
     <div id="view-canape" class="hidden"></div>
     <div id="view-prep" class="hidden"></div>
+    <div id="view-approvals" class="hidden"></div>
     <div id="view-saved" class="hidden"></div>
     <div id="view-import" class="hidden"></div>
   </main>
@@ -89,5 +92,6 @@
 <script src="studio.js"></script>
 <script src="prep.js"></script>
 <script src="pages.js"></script>
+<script src="approvals.js"></script>
 </body>
 </html>

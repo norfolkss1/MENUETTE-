@@ -1,5 +1,5 @@
 /* global firebase, FIREBASE_CONFIG, DEFAULT_CATEGORIES, DEFAULT_BUFFET_STATIONS,
-   DEFAULT_CANAPE_CATEGORIES, DEFAULT_PIN */
+   DEFAULT_CANAPE_CATEGORIES, DEFAULT_PIN, DEFAULT_MANAGER_PIN */
 
 /* ==========================================================================
    MENUETTE — core: config, state, boot, navigation, modal, shared helpers.
@@ -114,7 +114,7 @@ function freshBuilder(studioKey) {
     italics: true,
     photoLayout: STUDIOS[studioKey].layout === "photo",
     filename: "",
-    wordStyle: "designed",        /* "designed" | "text" — Word export flavour */
+    wordStyle: "text",            /* "text" | "designed" — Word export flavour */
     activeMenuId: null,
     sectionLabels: {},
     sectionOrder: [],
@@ -130,19 +130,30 @@ const state = {
     canape: DEFAULT_CANAPE_CATEGORIES.slice(),
   },
   pin: DEFAULT_PIN,
+  managerPin: DEFAULT_MANAGER_PIN,
+  /* "staff" or "manager" — whichever access code was used to get in */
+  role: null,
   /* dish libraries, keyed by studio */
   dishes: { ddr: [], buffet: [], canape: [] },
   menus: [],
+  archive: [],
   prepVault: [],
   stationBlocks: [],
   priceBook: [],
   view: "ddr",
   builders: { ddr: freshBuilder("ddr"), buffet: freshBuilder("buffet"), canape: freshBuilder("canape") },
   prep: { tab: "by-dish", search: "", studioFilter: "all", missingOnly: false },
+  approvals: { tab: "pending", search: "" },
   savedSearch: "",
   importReview: [],
   importStudio: "ddr",
 };
+
+/* A manager can approve or send back a menu that's waiting for review.
+   Everything else in the app is identical for both roles. */
+function isManager() { return state.role === "manager"; }
+function roleLabel() { return isManager() ? "Manager" : "Chef"; }
+function pendingMenus() { return state.menus.filter((m) => m.status === "pending"); }
 
 function studioOf(key) { return STUDIOS[key]; }
 function builderOf(key) { return state.builders[key]; }
@@ -267,10 +278,14 @@ document.addEventListener("DOMContentLoaded", () => {
     listenConfig();
     STUDIO_KEYS.forEach(listenDishes);
     listenMenus();
+    listenArchive();
     listenPrepVault();
     listenStationBlocks();
     loadPriceBook();
-    if (localStorage.getItem("menuette-unlocked") === "1") enterApp(); else showGate();
+    if (localStorage.getItem("menuette-unlocked") === "1") {
+      state.role = localStorage.getItem("menuette-role") === "manager" ? "manager" : "staff";
+      enterApp();
+    } else showGate();
   }).catch((err) => {
     showStatus(connectionErrorMsg(err));
     showGate();
@@ -299,6 +314,7 @@ async function ensureConfigDoc() {
       buffetStations: DEFAULT_BUFFET_STATIONS,
       canapeCategories: DEFAULT_CANAPE_CATEGORIES,
       pin: DEFAULT_PIN,
+      managerPin: DEFAULT_MANAGER_PIN,
     });
     return;
   }
@@ -308,6 +324,7 @@ async function ensureConfigDoc() {
   const patch = {};
   if (!Array.isArray(data.buffetStations) || !data.buffetStations.length) patch.buffetStations = DEFAULT_BUFFET_STATIONS;
   if (!Array.isArray(data.canapeCategories) || !data.canapeCategories.length) patch.canapeCategories = DEFAULT_CANAPE_CATEGORIES;
+  if (!data.managerPin) patch.managerPin = DEFAULT_MANAGER_PIN;
   if (Object.keys(patch).length) await ref.update(patch);
 }
 
@@ -320,6 +337,7 @@ function listenConfig() {
       state.sections.buffet = pick(data.buffetStations, DEFAULT_BUFFET_STATIONS);
       state.sections.canape = pick(data.canapeCategories, DEFAULT_CANAPE_CATEGORIES);
       state.pin = data.pin || DEFAULT_PIN;
+      state.managerPin = data.managerPin || DEFAULT_MANAGER_PIN;
     }
     refreshCurrentView();
   }, (err) => showStatus(connectionErrorMsg(err)));
@@ -343,6 +361,7 @@ function listenMenus() {
       .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     updateSidebarCounts();
     if (state.view === "saved") renderSavedList();
+    if (state.view === "approvals") renderApprovalsBody();
   }, (err) => showStatus(connectionErrorMsg(err)));
 }
 
@@ -352,6 +371,16 @@ function listenStationBlocks() {
       .map((d) => ({ id: d.id, ...d.data() }))
       .sort((a, b) => (a.station || "").localeCompare(b.station || "") || (a.source || "").localeCompare(b.source || ""));
     if (state.view === "buffet") renderPickerList("buffet");
+  }, (err) => showStatus(connectionErrorMsg(err)));
+}
+
+function listenArchive() {
+  db.collection("menuArchive").onSnapshot((snap) => {
+    state.archive = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.approvedAt || 0) - (a.approvedAt || 0));
+    updateSidebarCounts();
+    if (state.view === "approvals") renderApprovalsBody();
   }, (err) => showStatus(connectionErrorMsg(err)));
 }
 
@@ -382,6 +411,14 @@ function updateSidebarCounts() {
   if (prepEl) prepEl.textContent = state.prepVault.length || "";
   const savedEl = document.getElementById("sb-saved-count");
   if (savedEl) savedEl.textContent = state.menus.length || "";
+  const apprEl = document.getElementById("sb-approvals-count");
+  if (apprEl) {
+    const n = pendingMenus().length;
+    apprEl.textContent = n || "";
+    apprEl.classList.toggle("sb-count-alert", n > 0);
+  }
+  const roleEl = document.getElementById("sb-role");
+  if (roleEl) roleEl.textContent = state.role ? roleLabel() : "";
 }
 
 function refreshCurrentView() {
@@ -390,6 +427,7 @@ function refreshCurrentView() {
     renderPickerList(state.view);
   } else if (state.view === "prep") renderPrepBody();
   else if (state.view === "saved") renderSavedList();
+  else if (state.view === "approvals") renderApprovalsBody();
 }
 
 /* ============================== Gate ============================== */
@@ -399,31 +437,40 @@ function showGate() {
 }
 function handleUnlock() {
   const val = document.getElementById("gate-pin").value.trim();
-  if (val === state.pin) {
-    localStorage.setItem("menuette-unlocked", "1");
-    document.getElementById("gate-error").textContent = "";
-    enterApp();
-  } else {
+  // The manager code is checked first, so setting both to the same value gives
+  // everyone the higher role rather than silently locking approvals away.
+  const role = val && val === state.managerPin ? "manager" : (val && val === state.pin ? "staff" : null);
+  if (!role) {
     document.getElementById("gate-error").textContent = "That code isn't right.";
+    return;
   }
+  state.role = role;
+  localStorage.setItem("menuette-unlocked", "1");
+  localStorage.setItem("menuette-role", role);
+  document.getElementById("gate-error").textContent = "";
+  enterApp();
 }
 function enterApp() {
   document.getElementById("gate-screen").classList.add("hidden");
   document.getElementById("app-shell").classList.remove("hidden");
+  document.getElementById("app-shell").classList.toggle("is-manager", isManager());
   updateSidebarCounts();
   switchView(state.view);
 }
 function lockApp() {
   localStorage.removeItem("menuette-unlocked");
+  localStorage.removeItem("menuette-role");
+  state.role = null;
   document.getElementById("gate-pin").value = "";
   showGate();
 }
 
 /* ============================== Navigation ============================== */
-const ALL_VIEWS = [...STUDIO_KEYS, "prep", "saved", "import"];
+const ALL_VIEWS = [...STUDIO_KEYS, "prep", "approvals", "saved", "import"];
 
 function switchView(view) {
   state.view = view;
+  updateSidebarCounts();
   document.querySelectorAll(".sb-item").forEach((b) => b.classList.toggle("active", b.dataset.view === view));
   ALL_VIEWS.forEach((v) => {
     const el = document.getElementById("view-" + v);
@@ -431,6 +478,7 @@ function switchView(view) {
   });
   if (STUDIOS[view]) renderStudioShell(view);
   else if (view === "prep") renderPrepShell();
+  else if (view === "approvals") renderApprovalsShell();
   else if (view === "saved") renderSavedShell();
   else if (view === "import") renderImportShell();
 }
