@@ -45,4 +45,8 @@ const DEFAULT_BUFFET_STATIONS = [
 
 const DEFAULT_CANAPE_CATEGORIES = ["SAVOURY CANAPÉS", "SWEET CANAPÉS"];
 
+/* Two access codes, two roles. Both roles get the whole studio; the manager
+   code additionally lets you approve menus that have been sent for approval.
+   Change both from Approvals → Access codes once you're up and running. */
 const DEFAULT_PIN = "2580";
+const DEFAULT_MANAGER_PIN = "1379";
