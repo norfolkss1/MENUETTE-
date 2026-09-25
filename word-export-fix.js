@@ -1,7 +1,17 @@
-/* Word export compatibility fix.
-   The editable Word builder still uses the retired strip/marble frame assets.
-   Route that option through the exact DOM artwork exporter so Word receives the
-   same supplied paper background as the PDF, preview and print outputs. */
-function exportMenuDocxText(studioKey, btn) {
-  return exportMenuDocxStyled(studioKey, btn);
+/*
+ * Compatibility shim for the Word export.
+ *
+ * The real editable exporter lives in studio.js.  A previous workaround was
+ * overwriting exportMenuDocxText() to force the designed export, which made
+ * Word files look like a picture instead of editable text.  Keep the real
+ * implementation in place and only provide a fallback for older builds that do
+ * not define it yet.
+ */
+if (typeof exportMenuDocxText !== "function") {
+  function exportMenuDocxText(studioKey, btn) {
+    if (typeof exportMenuDocxStyled === "function") {
+      return exportMenuDocxStyled(studioKey, btn);
+    }
+    throw new Error("Editable Word export is unavailable.");
+  }
 }
