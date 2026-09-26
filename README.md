@@ -2,9 +2,10 @@
 
 A menu-building studio for the kitchen. Three menu types — **DDR**, **Buffet**
 and **Canapé** — each with its own dish library, a canvas you arrange, a live
-styled preview on the branded ME Dubai page, one-click Word/PDF export, and a
-prep sheet on demand. Behind them sits a **Prep Vault** holding every dish's
-prep list plus a reusable library of prep lists you can tie onto any dish.
+styled preview on the branded ME Dubai A4 page, one-click Word/PDF/PowerPoint
+export, and a prep sheet on demand. Behind them sits a **Prep Vault** holding
+every dish's prep list plus a reusable library of prep lists you can tie onto
+any dish.
 
 It's plain HTML/CSS/JS (no build step) + Firebase Firestore for live, shared
 data — the same pattern as your recipe book and ordering board, so you host it
@@ -97,11 +98,10 @@ approvals.js
 firebase-config.js        <- easy to miss; the app cannot start without it
 style.css
 data/default-categories.js
-assets/border-strip.jpg
-assets/border-strip.png
-assets/marble-bg.jpg
-assets/marble-bg.png
-assets/me-dubai-logo.png
+assets/page-bg.jpg
+assets/page-bg.png
+assets/page-bg-plain.jpg
+assets/page-bg-plain.png
 ```
 
 Things worth checking, roughly in order of how often they're the culprit:
@@ -144,11 +144,10 @@ pages.js                   Saved Menus and Import Menu
 approvals.js               send for approval, approve / send back, the archive
 firebase-config.js         your Firebase project config (fill this in)
 data/default-categories.js seed sections + seed PIN (only used on the very first run)
-assets/border-strip.jpg    the sand-swirl strip from the Word template (DDR + Buffet pages)
-assets/marble-bg.jpg       the marble page background from the canapé book (Canapé pages)
-assets/border-strip.png    the same two frames as PNG, used only by the Word export
-assets/marble-bg.png       (see "A note on the Word export" below)
-assets/me-dubai-logo.png   the "ME DUBAI" logo
+assets/page-bg.jpg         the gold-swirl cream page, "ME DUBAI" mark baked in (DDR/Buffet pages, canapé cover)
+assets/page-bg-plain.jpg   the same page with the mark removed (individual canapé dish pages)
+assets/page-bg.png         the same two backgrounds as PNG, used only by the Word export
+assets/page-bg-plain.png   (see "A note on the Word export" below)
 ```
 
 `app.js` must load first — the others read the state and helpers it defines.
@@ -191,9 +190,14 @@ identically, so there is only one thing to learn.
 | | DDR | Buffet | Canapé |
 |---|---|---|---|
 | Sections are | courses | stations | savoury / sweet |
-| Page | sand-swirl strip, off-white | sand-swirl strip, off-white | full-bleed marble |
-| Dishes shown as | text list | text list | photo cards, three to a page |
+| Page | gold-swirl cream, A4 | gold-swirl cream, A4 | gold-swirl cream, A4 |
+| Dishes shown as | text list | text list | one photo card per page, cover page first |
 | Pre-loaded | 81 dishes | 177 dishes + 72 station blocks | 15 canapés with photos |
+
+Every exported page — preview, PDF, Word and PowerPoint alike — is a real **A4
+sheet** (210 × 297mm / 8.268 × 11.693in), matching the branded templates
+(`MORNING_COFFEE_BREAK.pptx`, `CANAPE_MENU.pptx`) the ME Dubai team already
+uses.
 
 **Ready-made stations (Buffet).** The station toggle above the library lists 72
 stations exactly as they ran on real menus — "Grill Station" with its four
@@ -204,23 +208,28 @@ allergens, cost and prep list with it. Items you already have are skipped, and
 the button counts what's left to add. From there it's an ordinary canvas: drop
 what you don't want, reorder, rename the station heading on the page.
 
-**Canapé photos.** Three canapés fit on a page, one per row: a framed
-photograph on the left, name and description beside it.
+**Canapé photos.** One canapé per page, matching `CANAPE_MENU.pptx`: a cover
+page carrying just the menu title, then one full sheet per dish — name and
+allergen codes as a single bold line, a plain description underneath, and the
+photo large below it. Every page after the cover uses the logo-free variant of
+the background, the same way the printed book shows the "ME DUBAI" mark only
+on its own cover, never on a food page.
 
-Worth knowing, because it explains why they look the way they do: **every
-canapé bitmap in the source menus is cut off at one edge.** Those books place
-the plates so they bleed past the page trim, and the missing pixels exist in no
-file — not in `CANAPE MENU ALL.pdf`, not in the higher-resolution
+Worth knowing, because it explains why the photos look the way they do:
+**every canapé bitmap in the source menus is cut off at one edge.** Those books
+place the plates so they bleed past the page trim, and the missing pixels exist
+in no file — not in `CANAPE MENU ALL.pdf`, not in the higher-resolution
 `CANAPE MENU 2025.pdf`, not in any of the 150 menu PDFs, the PowerPoints, or
 the photographer's original folder (that shoot is the à la carte set, on black).
-Shown as a floating cutout, that cut reads as a slice through the plate. Shown
-as a framed photograph, the same edge is simply where the picture ends — which
-is what a photograph looks like. So each photo is a rectangle cropped to the
-dish's own shape (portrait for a tall cone, landscape for a long board), filled
-edge to edge, with a hairline shadow so it sits on the marble as a print.
+So each photo is still a shadowed cutout cropped to the dish's own shape
+(portrait for a tall cone, landscape for a long board) rather than a hard-edged
+frame — a floating cutout with a soft shadow reads as a photograph resting on
+the page; a hard frame would just make the existing cut look like a slice
+through the plate.
 
 The **Show photos** toggle switches to a plain text list when you want a
-compact canapé menu instead. If you upload your own photo, a PNG stays a PNG
+compact canapé menu instead — sections and all dishes on shared pages, the same
+as DDR and Buffet. If you upload your own photo, a PNG stays a PNG
 (transparency preserved); anything else becomes a smaller JPEG, and either way
 its size is recorded so the page can lay out before the image decodes.
 
@@ -251,30 +260,45 @@ named at the top so you know what's missing rather than it silently vanishing.
 ### Export
 
 - **📕 PDF** downloads a real `.pdf` — no print dialog. It's a high-resolution
-  snapshot of the exact live preview, one PDF page per preview page.
+  snapshot of the exact live preview, one A4 PDF page per preview page.
+- **📊 PowerPoint** downloads a `.pptx` on a custom A4 slide layout — the same
+  high-resolution snapshot approach as the PDF, one full-bleed slide per page.
+  Nothing in a PowerPoint file can stay editable the way Word text can, so
+  there's only the one flavour (no "editable" / "designed" choice).
 - **📄 Word** asks which of two files you want. **Both keep the design** — the
   difference is only whether the words can be edited:
   - **Editable menu** (the default) — real Word text anyone can retype, in the
     same fonts, sizes, colours, letter-spacing and spacing as the preview, with
-    the section rules, the border, the logo and the allergen legend repeating
-    on every page. Canapé cards come through as a photo beside its caption
-    (a borderless table — the only way Word will sit text next to a picture and
-    leave both editable). Word does its own line-breaking, so pages can fall
-    slightly differently from the preview.
+    the background and allergen legend repeating on every page. A canapé page
+    comes through as its own name/allergens line, description paragraph and
+    photo stacked underneath — the same order as the live preview, just as
+    plain paragraphs since nothing sits beside anything else any more. Word
+    does its own line-breaking, so pages can fall slightly differently from
+    the preview — most noticeably on canapé pages, where a tall photo can push
+    the next dish onto a page of its own.
+
+    One simplification worth knowing: the live preview and the PDF/PowerPoint
+    swap to the logo-free background on every canapé dish page (see above),
+    but the editable Word file keeps one background — the one with the mark —
+    behind every page throughout, cover included. Splitting the document into
+    two `docx.js` sections purely to swap a background image wasn't worth the
+    added complexity for that one difference.
   - **Exact copy of the preview** — pixel-for-pixel what's on the canvas,
     placed as full-page artwork anchored to the sheet so nothing can shift.
     Nothing can be edited either.
 
   Your last choice is remembered per studio. An editable 2-page DDR menu is
-  about 150KB; the exact-copy version of the same menu, about 750KB.
+  about 150KB; the exact-copy version of the same menu, about 1.5MB (A4 pages
+  make for a bigger screenshot than the old A5 sheet).
 
   The page's typography lives in the `TYPE` table at the top of `studio.js`,
   lifted from the `.menu-page` rules in `style.css`. Change one, change the
   other. It assumes **Playfair Display** and **DM Sans** are installed on the
   machine opening the file — they are on yours; on a machine without them Word
   substitutes something close.
-- **🖨️ Print** is separate from both — the browser print dialog on the styled
-  page, if you'd rather print physically or use the OS "Save as PDF".
+- **🖨️ Print** is separate from all three — the browser print dialog on the
+  styled page, if you'd rather print physically or use the OS "Save as PDF".
+  The print stylesheet asks for A4 paper directly (`@page { size: A4; }`).
 
 ### Approvals
 
@@ -342,11 +366,11 @@ preview, PDF, print and Word export alike.
 `[Content_Types].xml` maps `.png` to `image/png`. Hand it JPEG bytes and you
 get a file whose images are mislabelled. Two consequences:
 
-- The two page frames ship twice: the `.jpg` versions are what the browser
-  loads (smaller), and matching `.png` versions exist purely for the Word
-  export. They're 256-colour palette PNGs, which for near-grey stone and sand
-  textures is visually identical at a fraction of a truecolour PNG. **If you
-  replace a frame image, replace both files.**
+- The two page backgrounds ship twice: the `.jpg` versions are what the
+  browser loads (smaller), and matching `.png` versions exist purely for the
+  Word export, downsized to about 1000px wide — plenty for a header image,
+  at a fraction of a full-resolution PNG. **If you replace a background
+  image, replace both files.**
 - Canapé photos are re-encoded to PNG at export time, at roughly 150 dpi for
   the size Word actually prints them — honest bytes without shipping a
   full-resolution lossless copy. A 15-canapé menu comes out around 1.4MB.
@@ -362,18 +386,20 @@ There are two palettes in `style.css`, and they are separate on purpose:
   never changes what comes out of the printer.
 
 The page's measurements live in two places kept in sync on purpose — the `PAGE`
-object at the top of `app.js`, and the `.menu-page` rules in `style.css`. Both
-the preview and the `.docx` export are built from those same numbers, so a
-change has to be made in both to stay honest. The same goes for the marble
-theme's footer mark: `MARBLE_LOGO` in `studio.js` and
-`.theme-marble .brand-logo` in `style.css`.
+object at the top of `app.js` (A4: 8.268in × 11.693in), and the `.menu-page`
+rules in `style.css`. Both the preview and the `.docx`/`.pptx` exports are
+built from those same numbers, so a change has to be made in both to stay
+honest. There's no separate logo geometry to track any more — the "ME DUBAI"
+mark is baked into the background artwork itself (see `assets/page-bg.jpg`),
+not drawn as its own positioned element.
 
-There are two page themes, chosen per studio by the `theme` field in `STUDIOS`:
-`sand` (the swirl strip down the left margin, from the Word template) and
-`marble` (full-bleed stone, from the printed canapé book). To add a brand
-template of your own, drop its images in `assets/` (both `.jpg` and `.png`),
-add a `theme-yourname` block to `style.css` alongside the two existing ones,
-and point a studio at it.
+There are two page themes, chosen per studio by the `theme` field in
+`STUDIOS`: `sand` (DDR + Buffet — a text list on the gold-swirl page) and
+`canape` (one dish per page, cover page first, on the same swirl page with its
+logo-free variant for the food pages). Both now share one background image
+family, `assets/page-bg*.jpg/png`. To add a brand template of your own, drop
+its images in `assets/` (both `.jpg` and `.png`), add a `theme-yourname` block
+to `style.css` alongside the two existing ones, and point a studio at it.
 
 **Two invariants worth knowing before you touch `.menu-page` CSS:**
 
@@ -388,6 +414,12 @@ and point a studio at it.
    beside every plate in the exported PDF; and sizing the element up front is
    what lets pagination measure the page correctly whether or not the photo has
    finished decoding.
+
+(The canapé photo layout is the one exception to invariant 1's *measured*
+pagination — it's one dish per page by rule, not by measurement, since a
+single dish's name/description/photo always fits comfortably on its own
+sheet. There's no `paginateUnits()` call in that path at all — see
+`buildMenuPagesHTML()` in `studio.js`.)
 
 ## Firestore collections
 

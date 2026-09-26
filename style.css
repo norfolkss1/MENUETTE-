@@ -399,72 +399,39 @@ select.field { cursor: pointer; }
 
 /* ==========================================================================
    ME DUBAI MENU PAGE — the shared preview / print / PDF layout.
-   Real template measurements: page 5.903in x 8.271in; sand strip 0.626 x
-   7.086in anchored 0.375/0.593in from the top-left; logo 0.868 x 0.670in near
-   the bottom. Keep in sync with the PAGE object in app.js.
+   A4 sheet: 8.268in x 11.693in. Both branded themes share one full-bleed
+   background — the gold-swirl cream page from the MORNING COFFEE BREAK and
+   CANAPÉ MENU templates, with the "ME DUBAI" mark baked into the artwork —
+   rather than a positioned strip + separate logo image. Keep in sync with the
+   PAGE object in app.js.
    ========================================================================== */
 .menu-page-wrap { display: flex; justify-content: center; padding: 0 0 26px; }
 .menu-page {
   position: relative;
-  width: 5.903in;
-  min-height: 8.271in;
-  background: var(--page-paper);
+  width: 8.268in;
+  min-height: 11.693in;
+  background: #F6EEE3 url('assets/page-bg.jpg') center/cover no-repeat;
   box-shadow: var(--shadow-lg);
   overflow: hidden;
   font-family: var(--font-body);
   color: var(--page-ink);
 }
 
-/* --- sand theme (DDR + Buffet): swirl strip down the left margin --- */
-.menu-page.theme-sand .border-strip {
-  position: absolute;
-  left: 0.375in; top: 0.593in;
-  width: 0.626in; height: 7.086in;
-  background: url('assets/border-strip.jpg') center/cover no-repeat;
-  border-radius: 3px;
-}
-.menu-page.theme-sand .menu-content { padding: 0.75in 0.32in 1.05in 1.08in; }
-.menu-page.theme-sand .allergen-legend { left: 1.08in; right: 0.32in; }
+/* --- sand theme (DDR + Buffet): the swirl template, text set inside the margins --- */
+.menu-page.theme-sand .menu-content { padding: 1.05in 0.55in 1.35in 1.15in; }
+.menu-page.theme-sand .allergen-legend { left: 1.15in; right: 0.55in; }
+.menu-page.theme-sand .page-number { left: 1.15in; }
 
-/* --- marble theme (Canapé): full-bleed stone, as in the printed book --- */
-.menu-page.theme-marble {
-  background: #F7F7F7 url('assets/marble-bg.jpg') center/cover no-repeat;
-  color: #1C1C1C;
-}
-/* A whisper of white over the stone keeps small type readable wherever the
-   veining happens to run dark, without washing the marble out. */
-.menu-page.theme-marble .marble-wash {
-  position: absolute; inset: 0;
-  background: linear-gradient(180deg, #FFFFFF7D 0%, #FFFFFF47 42%, #FFFFFF8C 100%);
-}
-/* The marble page carries a shorter footer than the sand template — a smaller,
-   centred mark instead of the corner logo — which is what buys the third
-   canapé card its room on the page. */
-.menu-page.theme-marble .menu-content { padding: 0.46in 0.6in 0.9in 0.6in; }
-.menu-page.theme-marble .allergen-legend { left: 0.6in; right: 0.6in; bottom: 1.02in; color: #6B6B6B; border-top-color: #0000001A; }
-/* A tighter title block on the stone — the room it gives back is what lets a
-   third canapé card onto the page without shrinking the ME mark below the size
-   its hairline "DUBAI" lettering survives. */
-.menu-page.theme-marble .menu-title { font-size: 20px; }
-.menu-page.theme-marble .menu-title-rule { margin: 8px 0 14px; }
-.menu-page.theme-marble .menu-section { color: #1C1C1C; border-bottom-color: #00000021; }
-.menu-page.theme-marble .menu-title-rule { background: #1C1C1C; opacity: .35; }
-.menu-page.theme-marble .ddesc { color: #4A4A4A; }
-.menu-page.theme-marble .dallergens { color: #6B6B6B; }
-/* The printed canapé book centres the ME mark on the stone rather than tucking
-   it into the right margin the way the sand template does. Keep these in step
-   with MARBLE_LOGO in studio.js, which the .docx export is built from. */
-.menu-page.theme-marble .brand-logo {
-  left: 2.5175in; bottom: 0.30in;
-}
+/* --- canapé theme: the same swirl template, one dish to a page.
+   Every page after the cover uses the logo-free variant of the background —
+   the printed book shows no mark on the food pages, only on its cover — so
+   this is the one place theme-canape's background is overridden per page. */
+.menu-page.theme-canape { background-image: url('assets/page-bg-plain.jpg'); }
+.menu-page.theme-canape.cover-page { background-image: url('assets/page-bg.jpg'); }
+.menu-page.theme-canape .menu-content { padding: 1.05in 0.9in 1.35in 0.9in; }
+.menu-page.theme-canape .allergen-legend { left: 0.9in; right: 0.9in; }
+.menu-page.theme-canape .page-number { left: 0.9in; }
 
-.menu-page .brand-logo {
-  position: absolute;
-  left: 4.35in; bottom: 0.32in;
-  width: 0.868in; height: 0.670in;
-  background: url('assets/me-dubai-logo.png') center/contain no-repeat;
-  z-index: 2;
-}
 .menu-page .menu-content { position: relative; z-index: 1; }
 
 .menu-page .menu-title {
@@ -478,6 +445,14 @@ select.field { cursor: pointer; }
 }
 .menu-page .menu-title-rule.align-center { margin-left: auto; margin-right: auto; }
 .menu-page .menu-title-rule.continued { opacity: 0; margin: 0 0 6px; height: 1px; }
+
+/* --- canapé cover page: title only, centred on the sheet like the printed
+   book's title page, independent of content height. --- */
+.menu-page.theme-canape.cover-page .menu-content { min-height: 9.3in; }
+.menu-page.theme-canape.cover-page .menu-title {
+  position: absolute; left: 0.9in; right: 0.9in; top: 44%; transform: translateY(-50%);
+  text-align: center; font-size: 34px; letter-spacing: 2.5px; margin: 0;
+}
 
 .menu-page .menu-section-row { position: relative; margin: 20px 0 10px; min-height: 20px; }
 .menu-page .menu-section {
@@ -523,7 +498,7 @@ select.field { cursor: pointer; }
   font-size: 9px; line-height: 1; display: flex; align-items: center; justify-content: center;
   opacity: 0; transition: opacity .12s; box-shadow: var(--shadow-sm); z-index: 3;
 }
-.menu-dish:hover .dish-drop, .canape-card:hover .dish-drop { opacity: 1; }
+.menu-dish:hover .dish-drop, .canape-solo:hover .dish-drop { opacity: 1; }
 .menu-page .dish-drop:hover { background: var(--danger); color: #fff; }
 
 .menu-page .allergen-legend {
@@ -531,40 +506,35 @@ select.field { cursor: pointer; }
   font-size: 8.5px; letter-spacing: .4px; color: var(--page-muted); text-align: center;
   border-top: 1px solid var(--page-border); padding-top: 6px; z-index: 2;
 }
-/* Bottom-left, clear of both logo positions (sand tucks its mark to the right,
-   marble centres it). */
+/* Bottom-left, inside the same margin as the body text on each theme. */
 .menu-page .page-number {
-  position: absolute; bottom: 0.36in; left: 0.62in;
+  position: absolute; bottom: 0.5in; left: 1.15in;
   font-size: 8px; letter-spacing: 1px; color: var(--page-muted); z-index: 2;
 }
-.menu-page.theme-sand .page-number { left: 1.08in; }
 
-/* ---------------- Canapé photo cards ----------------
-   Three to a page, one per row: a framed photo on the left, name and
-   description beside it.
-
-   The photos are rectangular frames, not cutouts. Every canapé bitmap in the
-   source menus is cut off at one edge — those books place the plates so they
-   bleed past the page trim, and the missing pixels exist in no file we have.
-   Shown as a floating cutout, that cut reads as a slice through the plate;
-   shown as a framed photograph, the same edge is just where the picture ends,
-   which is what a photo is supposed to look like. Each frame is cropped to the
-   dish's own shape (portrait for a tall cone, landscape for a long board) and
-   sized in inches by canapePhotoHTML(), never by a scaled CSS background. */
-.menu-page .canape-grid { display: block; margin-bottom: 0.19in; }
-.menu-page .canape-card {
-  position: relative;
-  display: grid; grid-template-columns: 2.3in 1fr; gap: 0 0.22in; align-items: center;
+/* ---------------- Canapé pages ----------------
+   One dish per sheet, matching the CANAPÉ MENU template: name + allergen
+   codes as one bold line top-left, a plain description underneath, and the
+   dish photo large below it. The photo is still a cropped-to-shape cutout
+   with a soft shadow rather than a hard-edged frame — every source bitmap is
+   cut off at one edge (see the README), and a shadowed cutout reads as a
+   photograph resting on the page rather than a slice through the plate. */
+.menu-page.theme-canape .canape-solo { position: relative; }
+.menu-page.theme-canape .canape-solo-text { max-width: 5.4in; text-align: left; }
+.menu-page.theme-canape .canape-solo-text .dname { font-size: 15px; letter-spacing: .4px; }
+.menu-page.theme-canape .canape-solo-text .dallergens {
+  font-style: normal; font-weight: 700; color: inherit; font-size: 13px; margin-left: 0;
 }
-.menu-page .canape-slot { height: 1.62in; display: flex; align-items: center; justify-content: center; }
-.menu-page .canape-photo {
-  display: block; border-radius: 3px;
-  box-shadow: 0 1px 6px -2px rgba(0,0,0,.28);
+.menu-page.theme-canape .canape-solo-text .dallergens:not(:empty)::before { content: " - "; }
+.menu-page.theme-canape .canape-solo-text .dallergens:not(:empty)::after { content: ""; }
+.menu-page.theme-canape .canape-solo-text .ddesc {
+  font-size: 12px; margin-top: 6px; color: #4A4038; max-width: 4.8in;
 }
-.menu-page .canape-text { font-size: 12px; line-height: 1.4; text-align: left; }
-.menu-page .canape-card .dname { font-size: 12px; letter-spacing: .4px; }
-.menu-page .canape-card .ddesc { font-size: 10.5px; margin-top: 4px; }
-.menu-page .canape-card .dallergens { font-size: 9.5px; }
+.menu-page.theme-canape .canape-solo-photo { margin-top: 0.55in; text-align: center; }
+.menu-page.theme-canape .canape-solo-img {
+  display: inline-block; border-radius: 2px;
+  filter: drop-shadow(0 10px 18px rgba(30,20,10,.22));
+}
 
 /* uppercase is a pure display transform — it never bakes into stored text, so
    the inline-editable spans always hold the real, mixed-case value */
@@ -826,8 +796,8 @@ select.field { cursor: pointer; }
   .stage-scroll { padding: 20px 12px 40px; }
 }
 @media (max-width: 640px) {
-  .menu-page { transform: scale(.78); transform-origin: top center; }
-  .menu-page-wrap { padding-bottom: 0; height: 6.6in; }
+  .menu-page { transform: scale(.6); transform-origin: top center; }
+  .menu-page-wrap { padding-bottom: 0; height: 7in; }
 }
 
 /* ==========================================================================
@@ -836,14 +806,14 @@ select.field { cursor: pointer; }
 #print-area { display: none; }
 @media print {
   /* Browsers suppress CSS background-images and colours when printing unless
-     the page opts in — without this the sand strip, marble and logo (all CSS
-     backgrounds) come out blank, leaving only the text behind. */
+     the page opts in — without this the gold-swirl background (a CSS
+     background-image) comes out blank, leaving only the text behind. */
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
   body * { visibility: hidden; }
   #print-area, #print-area * { visibility: visible; }
   #print-area { display: block; position: absolute; top: 0; left: 0; }
-  @page { size: 5.903in 8.271in; margin: 0; }
-  .menu-page { box-shadow: none; width: 5.903in; min-height: 8.271in; transform: none; }
+  @page { size: A4; margin: 0; }
+  .menu-page { box-shadow: none; width: 8.268in; min-height: 11.693in; transform: none; }
   .menu-page-wrap { padding: 0; height: auto; }
   .menu-page [contenteditable] { outline: none !important; background: transparent !important; }
   .menu-page [contenteditable]:empty::before { content: none !important; }

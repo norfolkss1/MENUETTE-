@@ -23,24 +23,20 @@ function initFirebase() {
 const CURRENCY = "AED";
 
 /* ============================== ME Dubai page measurements ==============================
-   Keep these in sync with the .menu-page rules in style.css — the live preview,
-   the .docx export and the PDF export are all built from these same numbers,
-   so what you see on screen is exactly what lands in both exported files. */
+   A4 (8.268in x 11.693in / 210mm x 297mm) — every exported menu (PDF, Word,
+   PowerPoint, print) is this one sheet size. Keep these in sync with the
+   .menu-page rules in style.css — the live preview and every export are built
+   from these same numbers, so what you see on screen is exactly what lands in
+   every exported file. The gold-swirl background (with the ME DUBAI mark
+   baked in) is a full-bleed image now, not a positioned strip + logo, so
+   there's no separate border/logo geometry to track here any more. */
 const PAGE = {
-  widthIn: 5.903,
-  heightIn: 8.271,
-  marginTopIn: 0.75,
-  marginBottomIn: 1.05,
-  marginLeftIn: 1.08,
-  marginRightIn: 0.32,
-  borderLeftIn: 0.375,
-  borderTopIn: 0.593,
-  borderWidthIn: 0.626,
-  borderHeightIn: 7.086,
-  logoLeftIn: 4.35,
-  logoBottomIn: 0.32,
-  logoWidthIn: 0.868,
-  logoHeightIn: 0.670,
+  widthIn: 8.268,
+  heightIn: 11.693,
+  marginTopIn: 1.05,
+  marginBottomIn: 1.35,
+  marginLeftIn: 1.15,
+  marginRightIn: 0.55,
 };
 
 /* ============================== Menu studios ==============================
@@ -61,7 +57,7 @@ const STUDIOS = {
     /* which config/menuSettings field holds this studio's section list */
     sectionsField: "categories",
     sectionsNoun: "Course",
-    theme: "sand",          /* sand-swirl border strip + off-white page */
+    theme: "sand",          /* gold-swirl cream page, per the branded templates */
     layout: "text",
     photos: false,
     costing: true,
@@ -98,12 +94,12 @@ const STUDIOS = {
     collection: "canapeDishes",
     sectionsField: "canapeCategories",
     sectionsNoun: "Group",
-    theme: "marble",        /* full-bleed marble page, as in the printed book */
+    theme: "canape",        /* gold-swirl cream page, one canapé per sheet — see CANAPÉ MENU template */
     layout: "photo",
     photos: true,
     costing: true,
     defaultTitle: "CANAPÉ MENU",
-    blurb: "Photo-led canapé selections on the marble presentation page.",
+    blurb: "Photo-led canapé selections, one to a page, on the branded cover-and-card template.",
   },
 };
 const STUDIO_KEYS = Object.keys(STUDIOS);
@@ -119,7 +115,9 @@ function freshBuilder(studioKey) {
     titleText: STUDIOS[studioKey].defaultTitle,
     alignment: "center",
     uppercase: false,
-    italics: true,
+    // The canapé template's captions read as plain (not italic) grey text —
+    // every other studio keeps the italic description style.
+    italics: studioKey !== "canape",
     photoLayout: STUDIOS[studioKey].layout === "photo",
     filename: "",
     wordStyle: "text",            /* "text" | "designed" — Word export flavour */
@@ -223,7 +221,7 @@ function resizeImageFile(file, maxWidth, quality) {
   // Resizing client-side keeps every photo well under that cap.
   //
   // A PNG is kept a PNG: the canapé photos are transparent cutouts meant to sit
-  // straight on the marble page, and re-encoding one as JPEG would flatten its
+  // straight on the cream page, and re-encoding one as JPEG would flatten its
   // background to a solid rectangle. Everything else becomes a smaller JPEG.
   const keepAlpha = /png/i.test(file.type);
   return new Promise((resolve, reject) => {
@@ -295,6 +293,7 @@ const REQUIREMENTS = [
   { global: "docx",                 from: "the Word export library", remote: true },
   { global: "html2canvas",          from: "the PDF export library", remote: true },
   { global: "jspdf",                from: "the PDF export library", remote: true },
+  { global: "PptxGenJS",            from: "the PowerPoint export library", remote: true },
 ];
 
 /* Checked with `new Function` rather than `window[name]`: a top-level `const`
