@@ -208,12 +208,12 @@ allergens, cost and prep list with it. Items you already have are skipped, and
 the button counts what's left to add. From there it's an ordinary canvas: drop
 what you don't want, reorder, rename the station heading on the page.
 
-**Canapé photos.** One canapé per page, matching `CANAPE_MENU.pptx`: a cover
-page carrying just the menu title, then one full sheet per dish — name and
-allergen codes as a single bold line, a plain description underneath, and the
-photo large below it. Every page after the cover uses the logo-free variant of
-the background, the same way the printed book shows the "ME DUBAI" mark only
-on its own cover, never on a food page.
+**Canapé photos.** Three canapés per page, matching `CANAPE_MENU.pptx`: a
+photo on the left, and beside it the dish name with allergen codes on one bold
+line and a plain description underneath. The page title and section heading
+sit at the top of the first page and the section heading repeats when a
+section continues. Photos are transparent cutouts with a soft shadow, sized in
+inches, so nothing sits behind them.
 
 Worth knowing, because it explains why the photos look the way they do:
 **every canapé bitmap in the source menus is cut off at one edge.** Those books
@@ -257,32 +257,34 @@ that menu into a plain kitchen checklist (tick boxes, no branding, no costs)
 and exports it as its own Word or PDF. Dishes with nothing written down are
 named at the top so you know what's missing rather than it silently vanishing.
 
+### Text sizes
+
+Each studio's **Canvas** tab has a **Text sizes (pt)** panel with three
+fields — **Headers**, **Dish names** and **Descriptions** (the menu title
+follows Headers). Changes show live in the preview and flow into Word, PDF and
+PowerPoint. The last values you chose are remembered per studio in the browser
+(`localStorage`, key `menuette-fontsizes-<studio>`) and used for every new menu;
+a saved menu also keeps its own sizes. **Reset text sizes** restores defaults.
+
 ### Export
 
-- **📕 PDF** downloads a real `.pdf` — no print dialog. It's a high-resolution
-  snapshot of the exact live preview, one A4 PDF page per preview page.
-- **📊 PowerPoint** downloads a `.pptx` on a custom A4 slide layout — the same
-  high-resolution snapshot approach as the PDF, one full-bleed slide per page.
-  Nothing in a PowerPoint file can stay editable the way Word text can, so
-  there's only the one flavour (no "editable" / "designed" choice).
+- **📕 PDF** downloads a real `.pdf` with **selectable, editable text** (drawn
+  with jsPDF using standard Helvetica/Times fonts, so it opens anywhere). One
+  A4 page per preview page, same pagination and positions as the preview.
+- **📊 PowerPoint** downloads a `.pptx` with real text boxes, lines and
+  pictures on an A4 slide over the swirl background, so every word can be
+  edited in PowerPoint. PDF and PowerPoint share one layout model
+  (`buildExportLayout` in `studio.js`).
 - **📄 Word** asks which of two files you want. **Both keep the design** — the
   difference is only whether the words can be edited:
   - **Editable menu** (the default) — real Word text anyone can retype, in the
     same fonts, sizes, colours, letter-spacing and spacing as the preview, with
-    the background and allergen legend repeating on every page. A canapé page
-    comes through as its own name/allergens line, description paragraph and
-    photo stacked underneath — the same order as the live preview, just as
-    plain paragraphs since nothing sits beside anything else any more. Word
+    the background and allergen legend repeating on every page. Canapés come through as a borderless two-column table (photo | name and description), three to a page. Word
     does its own line-breaking, so pages can fall slightly differently from
     the preview — most noticeably on canapé pages, where a tall photo can push
     the next dish onto a page of its own.
 
-    One simplification worth knowing: the live preview and the PDF/PowerPoint
-    swap to the logo-free background on every canapé dish page (see above),
-    but the editable Word file keeps one background — the one with the mark —
-    behind every page throughout, cover included. Splitting the document into
-    two `docx.js` sections purely to swap a background image wasn't worth the
-    added complexity for that one difference.
+    
   - **Exact copy of the preview** — pixel-for-pixel what's on the canvas,
     placed as full-page artwork anchored to the sheet so nothing can shift.
     Nothing can be edited either.
@@ -395,8 +397,7 @@ not drawn as its own positioned element.
 
 There are two page themes, chosen per studio by the `theme` field in
 `STUDIOS`: `sand` (DDR + Buffet — a text list on the gold-swirl page) and
-`canape` (one dish per page, cover page first, on the same swirl page with its
-logo-free variant for the food pages). Both now share one background image
+`canape` (three photo cards per page on the same swirl page). Both now share one background image
 family, `assets/page-bg*.jpg/png`. To add a brand template of your own, drop
 its images in `assets/` (both `.jpg` and `.png`), add a `theme-yourname` block
 to `style.css` alongside the two existing ones, and point a studio at it.

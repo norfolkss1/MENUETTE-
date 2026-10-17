@@ -77,6 +77,14 @@ function renderStudioShell(studioKey) {
               <div class="opt-row">
                 <label class="opt"><input type="checkbox" id="b-photos-${studioKey}" ${b.photoLayout ? "checked" : ""}> Show photos</label>
               </div>` : ""}
+              <div class="rail-section">Text sizes (pt)</div>
+              <div class="size-grid">
+                <label>Headers<input type="number" id="b-fs-header-${studioKey}" class="field field-sm" step="0.5" min="${FONT_LIMITS_PT.header[0]}" max="${FONT_LIMITS_PT.header[1]}" value="${b.fontSizes.header}"></label>
+                <label>Dish names<input type="number" id="b-fs-dish-${studioKey}" class="field field-sm" step="0.5" min="${FONT_LIMITS_PT.dish[0]}" max="${FONT_LIMITS_PT.dish[1]}" value="${b.fontSizes.dish}"></label>
+                <label>Descriptions<input type="number" id="b-fs-desc-${studioKey}" class="field field-sm" step="0.5" min="${FONT_LIMITS_PT.desc[0]}" max="${FONT_LIMITS_PT.desc[1]}" value="${b.fontSizes.desc}"></label>
+              </div>
+              <div class="size-note">Remembered for every new ${escapeHtml(st.short)} menu. The menu title follows the Headers size.</div>
+              <button class="btn btn-ghost btn-sm btn-block" data-act="reset-sizes">Reset text sizes</button>
               <input id="b-filename-${studioKey}" class="field field-sm" placeholder="File name (no extension)" value="${escapeHtml(b.filename)}">
               <button class="btn btn-ghost btn-sm btn-block" data-act="clear">Start a new blank menu</button>
             </div>
@@ -130,6 +138,26 @@ function renderStudioShell(studioKey) {
   if (st.photos) {
     document.getElementById(`b-photos-${studioKey}`).addEventListener("change", (e) => { b.photoLayout = e.target.checked; renderPreview(studioKey); });
   }
+  /* --- text sizes: applied live, remembered per studio --- */
+  const sizeKeys = ["header", "dish", "desc"];
+  const applySize = (k, raw) => {
+    const clean = cleanFontSizes(Object.assign({}, b.fontSizes, { [k]: raw }), studioKey);
+    b.fontSizes[k] = clean[k];
+    saveFontSizes(studioKey, b.fontSizes);
+    renderPreview(studioKey);
+  };
+  sizeKeys.forEach((k) => {
+    const input = document.getElementById(`b-fs-${k}-${studioKey}`);
+    input.addEventListener("input", (e) => { if (e.target.value !== "") applySize(k, e.target.value); });
+    // on leaving the box, show the value that was actually applied (clamped/rounded)
+    input.addEventListener("change", (e) => { applySize(k, e.target.value); e.target.value = b.fontSizes[k]; });
+  });
+  el.querySelector('[data-act="reset-sizes"]').addEventListener("click", () => {
+    b.fontSizes = cleanFontSizes(null, studioKey);
+    saveFontSizes(studioKey, b.fontSizes);
+    sizeKeys.forEach((k) => { document.getElementById(`b-fs-${k}-${studioKey}`).value = b.fontSizes[k]; });
+    renderPreview(studioKey);
+  });
   el.querySelector('[data-act="clear"]').addEventListener("click", () => {
     if (b.canvas.length && !confirm("Clear this menu and start a blank one?")) return;
     state.builders[studioKey] = freshBuilder(studioKey);
@@ -505,6 +533,7 @@ function previewOptions(studioKey, overrides) {
     uppercase: b.uppercase,
     italics: b.italics,
     photoLayout: b.photoLayout,
+    fontSizes: b.fontSizes,
     titleText: b.titleText,
     sectionLabels: b.sectionLabels,
     sectionOrder: getSectionOrder(studioKey),
@@ -534,9 +563,30 @@ function buildSectionHeaderHTML(category, opts, groupIndex, groupCount, continue
     </div>`;
 }
 
-/* buildDishHTML is only used for the plain-text list layouts (DDR, Buffet,
-   and Canapé with "Show photos" switched off) — the photo-led canapé page has
-   its own one-per-sheet builders below (buildCanapeDishPageHTML etc.). */
+/* The slot a canapé photo sits in, in inches. Keep in step with the
+   grid-template-columns on .canape-card in style.css. */
+const CANAPE_SLOT = { heightIn: 2.3, widthIn: 2.3 };
+
+/* A real <img> at an explicitly computed size, not a CSS background: html2canvas
+   leaves a faint seam on a scaled background image, and sizing the element up
+   front lets pagination measure the page before the photo has decoded. */
+function canapePhotoSize(item) {
+  const natW = Number(item.photoW) || 0;
+  const natH = Number(item.photoH) || 0;
+  if (!natW || !natH) return null;
+  const scale = Math.min(CANAPE_SLOT.widthIn / natW, CANAPE_SLOT.heightIn / natH);
+  return { widthIn: natW * scale, heightIn: natH * scale };
+}
+
+function canapePhotoHTML(item) {
+  if (!item.imageBase64) return "";
+  const size = canapePhotoSize(item);
+  if (!size) {
+    return `<img class="canape-photo" src="${item.imageBase64}" alt="" style="max-width:${CANAPE_SLOT.widthIn}in;max-height:${CANAPE_SLOT.heightIn}in;">`;
+  }
+  return `<img class="canape-photo" src="${item.imageBase64}" alt="" style="width:${size.widthIn.toFixed(3)}in;height:${size.heightIn.toFixed(3)}in;">`;
+}
+
 function buildDishHTML(item, idx, opts) {
   const st = studioOf(opts.studioKey);
   const alignClass = opts.alignment === "left" ? "align-left" : "align-center";
@@ -546,14 +596,23 @@ function buildDishHTML(item, idx, opts) {
   const nameHtml = `<span class="dname ${ucClass}" ${ce} data-idx="${idx}" data-field="name" data-placeholder="${escapeHtml(st.noun)} name">${escapeHtml(item.name)}</span>`;
   const allergHtml = `<span class="dallergens" ${ce} data-idx="${idx}" data-field="allergens" data-placeholder="allergens">${escapeHtml(item.allergens || "")}</span>`;
   const descHtml = `<span class="ddesc" ${ce} data-idx="${idx}" data-field="description" data-placeholder="Add a description…" style="${opts.italics ? "" : "font-style:normal;"}">${escapeHtml(item.description || "")}</span>`;
+
+  if (st.photos && opts.photoLayout) {
+    return `<div class="canape-card">
+      ${dropBtn}
+      <div class="canape-slot">${canapePhotoHTML(item)}</div>
+      <div class="canape-text">${nameHtml}${allergHtml}${descHtml}</div>
+    </div>`;
+  }
   return `<div class="menu-dish ${alignClass}">${dropBtn}${nameHtml}${allergHtml}${descHtml}</div>`;
 }
 
 /* Flatten the canvas into the units pagination packs: a section heading, then
-   one unit per dish. Splitting per dish rather than per section is what lets a
-   long section flow across pages instead of overflowing off the bottom of
-   one. (Not used for the photo-led canapé layout — see buildMenuPagesHTML.) */
+   one unit per dish (each canapé card is its own unit, so pagination measures
+   real card height and fits as many as the page allows — three to a sheet). */
 function buildUnits(items, opts) {
+  const st = studioOf(opts.studioKey);
+  const usePhotos = st.photos && opts.photoLayout;
   const groups = groupByCategory(items, opts.sectionOrder && opts.sectionOrder.length ? opts.sectionOrder : sectionsOf(opts.studioKey));
   const units = [];
 
@@ -563,13 +622,23 @@ function buildUnits(items, opts) {
       html: buildSectionHeaderHTML(g.category, opts, gi, groups.length, false),
     });
     g.items.forEach((it) => {
+      const inner = buildDishHTML(it, items.indexOf(it), opts);
       units.push({
         kind: "dish", category: g.category, items: [it],
-        html: buildDishHTML(it, items.indexOf(it), opts),
+        html: usePhotos ? `<div class="canape-grid">${inner}</div>` : inner,
       });
     });
   });
   return units;
+}
+
+/* The page's text sizes travel as CSS variables on the .menu-page element, so
+   the live preview, the pagination probe, print and every export that reads
+   the DOM all see the same numbers. */
+function fontVarsStyle(opts) {
+  if (!opts.fontSizes) return "";
+  const f = fontPx(opts.fontSizes);
+  return `--fs-title:${f.title.toFixed(2)}px;--fs-header:${f.header.toFixed(2)}px;--fs-dish:${f.dish.toFixed(2)}px;--fs-allerg:${f.allerg.toFixed(2)}px;--fs-desc:${f.desc.toFixed(2)}px;`;
 }
 
 function buildStudioPageHTML(bodyHtml, opts, pageIndex, pageCount) {
@@ -589,90 +658,13 @@ function buildStudioPageHTML(bodyHtml, opts, pageIndex, pageCount) {
   const pageNo = pageCount > 1 ? `<div class="page-number">${(pageIndex || 0) + 1} / ${pageCount}</div>` : "";
 
   return `
-    <div class="menu-page theme-${st.theme}">
+    <div class="menu-page theme-${st.theme}" style="${fontVarsStyle(opts)}">
       <div class="menu-content">
         ${head}
         ${bodyHtml}
       </div>
       <div class="allergen-legend">Allergens: D — Dairy &nbsp;·&nbsp; G — Gluten &nbsp;·&nbsp; S — Seafood &nbsp;·&nbsp; N — Nuts</div>
       ${pageNo}
-    </div>
-  `;
-}
-
-/* ============================== Canapé pages ==============================
-   The canapé template is one dish per sheet: a title-only cover page (like
-   the printed book's "CANAPÉ MENU" cover) followed by one page per canapé —
-   name + allergens, a description, and the photo, large. This is different
-   enough from the section-and-list layout every other studio uses that it
-   gets its own small builders instead of forcing it through buildUnits() /
-   paginateUnits(), which assume several dishes share a page. */
-
-/* Flattens the canvas into one ordered list, grouped by section but with the
-   section boundary itself invisible on the page — the printed book doesn't
-   label savoury/sweet on the food pages, only the running order reflects it. */
-function canapeDishOrder(items, opts) {
-  const groups = groupByCategory(items, opts.sectionOrder && opts.sectionOrder.length ? opts.sectionOrder : sectionsOf(opts.studioKey));
-  const ordered = [];
-  groups.forEach((g) => g.items.forEach((it) => ordered.push(it)));
-  return ordered;
-}
-
-function buildCanapeCoverHTML(opts, pageCount) {
-  const ucClass = opts.uppercase ? "uc" : "";
-  const ce = opts.editable ? `contenteditable="true"` : "";
-  const pageNo = pageCount > 1 ? `<div class="page-number">1 / ${pageCount}</div>` : "";
-  return `
-    <div class="menu-page theme-canape cover-page">
-      <div class="menu-content">
-        <div class="menu-title ${ucClass}" ${ce} data-field="title" data-placeholder="Menu title">${escapeHtml(opts.titleText || "")}</div>
-      </div>
-      ${pageNo}
-    </div>
-  `;
-}
-
-/* The photo slot on a solo canapé page — big enough to be the page's main
-   visual, sized in inches (never a scaled CSS background), for the same
-   reasons as the old per-row canapé photos: no html2canvas seam, and layout
-   that's correct before the image finishes decoding. */
-const CANAPE_SOLO_SLOT = { widthIn: 6.0, heightIn: 6.2 };
-
-function canapeSoloPhotoSize(item) {
-  const natW = Number(item.photoW) || 0;
-  const natH = Number(item.photoH) || 0;
-  if (!natW || !natH) return null;
-  const scale = Math.min(CANAPE_SOLO_SLOT.widthIn / natW, CANAPE_SOLO_SLOT.heightIn / natH);
-  return { widthIn: natW * scale, heightIn: natH * scale };
-}
-
-function canapeSoloPhotoHTML(item) {
-  if (!item.imageBase64) return "";
-  const size = canapeSoloPhotoSize(item);
-  if (!size) {
-    return `<img class="canape-solo-img" src="${item.imageBase64}" alt="" style="max-width:${CANAPE_SOLO_SLOT.widthIn}in;max-height:${CANAPE_SOLO_SLOT.heightIn}in;">`;
-  }
-  return `<img class="canape-solo-img" src="${item.imageBase64}" alt="" style="width:${size.widthIn.toFixed(3)}in;height:${size.heightIn.toFixed(3)}in;">`;
-}
-
-function buildCanapeDishPageHTML(item, idx, opts, pageIndex, pageCount) {
-  const ce = opts.editable ? `contenteditable="true"` : "";
-  const ucClass = opts.uppercase ? "uc" : "";
-  const dropBtn = opts.editable ? `<button type="button" class="dish-drop" data-drop-dish="${idx}" title="Remove from menu">✕</button>` : "";
-  const nameHtml = `<span class="dname ${ucClass}" ${ce} data-idx="${idx}" data-field="name" data-placeholder="Canapé name">${escapeHtml(item.name)}</span>`;
-  const allergHtml = `<span class="dallergens" ${ce} data-idx="${idx}" data-field="allergens" data-placeholder="allergens">${escapeHtml(item.allergens || "")}</span>`;
-  const descHtml = `<span class="ddesc" ${ce} data-idx="${idx}" data-field="description" data-placeholder="Add a description…" style="${opts.italics ? "" : "font-style:normal;"}">${escapeHtml(item.description || "")}</span>`;
-  return `
-    <div class="menu-page theme-canape">
-      <div class="menu-content">
-        <div class="canape-solo">
-          ${dropBtn}
-          <div class="canape-solo-text">${nameHtml}${allergHtml}${descHtml}</div>
-          <div class="canape-solo-photo">${canapeSoloPhotoHTML(item)}</div>
-        </div>
-      </div>
-      <div class="allergen-legend">Allergens: D — Dairy &nbsp;·&nbsp; G — Gluten &nbsp;·&nbsp; S — Seafood &nbsp;·&nbsp; N — Nuts</div>
-      <div class="page-number">${pageIndex} / ${pageCount}</div>
     </div>
   `;
 }
@@ -759,27 +751,12 @@ function paginateUnits(units, opts) {
 /* Returns an array of full-page HTML strings for the given canvas. */
 function buildMenuPagesHTML(items, opts) {
   const st = studioOf(opts.studioKey);
-  const soloCanape = st.photos && opts.photoLayout;
 
   if (!items.length) {
-    if (soloCanape) return [buildCanapeCoverHTML(opts, 1)];
     return [buildStudioPageHTML(
       `<div class="menu-empty">Add ${escapeHtml(st.plural)} from the library to see them here.</div>`,
       opts, 0, 1
     )];
-  }
-
-  // The photo-led canapé layout is a cover page plus one full sheet per dish —
-  // structurally different from the shared list pagination below, so it
-  // branches out to its own builders instead of going through buildUnits().
-  if (soloCanape) {
-    const ordered = canapeDishOrder(items, opts);
-    const pageCount = ordered.length + 1;
-    const pages = [buildCanapeCoverHTML(opts, pageCount)];
-    ordered.forEach((item, i) => {
-      pages.push(buildCanapeDishPageHTML(item, items.indexOf(item), opts, i + 2, pageCount));
-    });
-    return pages;
   }
 
   const pages = paginateUnits(buildUnits(items, opts), opts);
@@ -1077,6 +1054,7 @@ async function persistMenu(studioKey, name, extra) {
     uppercase: b.uppercase,
     italics: b.italics,
     photoLayout: !!b.photoLayout,
+    fontSizes: cleanFontSizes(b.fontSizes, studioKey),
     sectionLabels: b.sectionLabels || {},
     sectionOrder: getSectionOrder(studioKey),
     totalCost: b.canvas.reduce((s, i) => s + (Number(i.cost) || 0), 0),
@@ -1122,6 +1100,7 @@ function loadMenu(id, snapshot) {
   b.uppercase = !!m.uppercase;
   b.italics = m.italics !== false;
   b.photoLayout = m.photoLayout !== undefined ? !!m.photoLayout : studioOf(studioKey).layout === "photo";
+  if (m.fontSizes) b.fontSizes = cleanFontSizes(m.fontSizes, studioKey);   // otherwise keep the remembered sizes
   b.sectionLabels = m.sectionLabels || {};
   b.sectionOrder = m.sectionOrder || [];
   b.filename = m.name || "";
@@ -1184,12 +1163,14 @@ const TYPE = {
      Word borders have no opacity */
   titleRule: "CA9E88",
   titleRuleWidthIn: 0.479,
-  title: { px: 22, coverPx: 34, letterPx: 1.5, coverLetterPx: 2.5, afterPx: 4 },
+  /* Font SIZES are not here any more: they come from the builder's
+     fontSizes (the canvas "Text sizes" panel) via fontPx(). Only spacing and
+     letter-spacing live in this table. */
+  title: { letterPx: 1.5, afterPx: 4 },
   titleRuleSpace: { beforePx: 10, afterPx: 20 },
-  section: { px: 12.5, letterPx: 2, beforePx: 20, afterPx: 15 },
-  dish: { px: 12.5, canapePx: 15, beforePx: 8 },
-  allergens: { px: 10, canapePx: 13 },
-  desc: { px: 11, canapePx: 12, beforePx: 2 },
+  section: { letterPx: 2, beforePx: 20, afterPx: 15 },
+  dish: { beforePx: 8 },
+  desc: { beforePx: 2 },
   legend: { px: 8.5, letterPx: 0.4, beforePx: 22 },
 };
 
@@ -1313,8 +1294,9 @@ async function exportMenuDocxText(studioKey, btn) {
     const {
       Document, Packer, Paragraph, TextRun, ImageRun, Header, Footer, AlignmentType,
       HorizontalPositionRelativeFrom, VerticalPositionRelativeFrom, TextWrappingType, TextWrappingSide, PageBreak,
-      BorderStyle,
+      Table, TableRow, TableCell, WidthType, VerticalAlign, BorderStyle,
     } = docx;
+    const NO_BORDER = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
     const photoCards = st.photos && b.photoLayout;
 
     const inchesToTwip = (n) => Math.round(n * 1440);
@@ -1347,9 +1329,8 @@ async function exportMenuDocxText(studioKey, btn) {
     });
 
     const opts = previewOptions(studioKey, { editable: false });
-    const dishPx = photoCards ? TYPE.dish.canapePx : TYPE.dish.px;
-    const descPx = photoCards ? TYPE.desc.canapePx : TYPE.desc.px;
-    const allergPx = photoCards ? TYPE.allergens.canapePx : TYPE.allergens.px;
+    const fs = fontPx(b.fontSizes);          // the canvas "Text sizes", in px
+    const dishPx = fs.dish, descPx = fs.desc, allergPx = fs.allerg;
     const textWidthIn = PAGE.widthIn - PAGE.marginLeftIn - PAGE.marginRightIn;
 
     const children = [];
@@ -1372,114 +1353,122 @@ async function exportMenuDocxText(studioKey, btn) {
       })],
     });
 
-    if (photoCards) {
-      /* --- Canapé: a cover page, then one dish per page-break, text stacked
-         above a full-width photo — mirroring the live preview's solo pages. */
-      children.push(new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { before: twip(220) },
-        children: [new TextRun({
-          text: titleText || st.defaultTitle,
-          font: TYPE.displayFont, bold: true, color: TYPE.ink,
-          size: halfPt(TYPE.title.coverPx), characterSpacing: twip(TYPE.title.coverLetterPx),
-        })],
-      }));
+    /* Title, rule, sections, dishes — mirroring the on-screen pagination so the
+       Word file breaks where the preview, PDF and PowerPoint do. A canapé is a
+       photo beside its caption (a borderless two-cell table — the only way to
+       sit text next to a picture and keep both editable). */
+    children.push(new Paragraph({
+      alignment: align,
+      spacing: { after: twip(TYPE.title.afterPx) },
+      children: [new TextRun({
+        text: titleText || st.defaultTitle,
+        font: TYPE.displayFont, bold: true, color: TYPE.ink,
+        size: halfPt(fs.title), characterSpacing: twip(TYPE.title.letterPx),
+      })],
+    }));
 
-      /* Word gets its own PNG copy of each photo, at ~150dpi for the size it
-         is placed at — see toPngDataUri(). */
-      const ordered = canapeDishOrder(b.canvas, opts);
-      const wordPhotos = new Map();
-      await Promise.all(ordered.filter((i) => i.imageBase64).map(async (i) => {
-        const size = canapeSoloPhotoSize(i);
-        const png = await toPngDataUri(i.imageBase64, Math.round((size ? size.widthIn : 5) * 150));
+    // The short rule under the title is an empty paragraph wearing a bottom
+    // border, indented until the border is only as wide as the rule itself.
+    const ruleIndentIn = Math.max(0, textWidthIn - TYPE.titleRuleWidthIn);
+    children.push(new Paragraph({
+      indent: b.alignment === "left"
+        ? { right: inchesToTwip(ruleIndentIn) }
+        : { left: inchesToTwip(ruleIndentIn / 2), right: inchesToTwip(ruleIndentIn / 2) },
+      spacing: { before: twip(TYPE.titleRuleSpace.beforePx), after: twip(TYPE.titleRuleSpace.afterPx) },
+      border: { bottom: { color: TYPE.titleRule, style: BorderStyle.SINGLE, size: 12, space: 0 } },
+      children: [new TextRun({ text: "", size: 2 })],
+    }));
+
+    const sectionParagraph = (category) => {
+      const secLabel = sectionLabelFor(category, opts);
+      if (!secLabel) return null;
+      return new Paragraph({
+        alignment: align,
+        spacing: { before: twip(TYPE.section.beforePx), after: twip(TYPE.section.afterPx) },
+        border: { bottom: { color: TYPE.rule, style: BorderStyle.SINGLE, size: 6, space: 4 } },
+        children: [new TextRun({
+          text: secLabel, font: TYPE.displayFont, bold: true, color: TYPE.accent,
+          size: halfPt(fs.header), characterSpacing: twip(TYPE.section.letterPx),
+        })],
+      });
+    };
+
+    /* Word gets its own PNG copy of each canapé photo, at ~150dpi for the size
+       it is placed at — see toPngDataUri(). */
+    const wordPhotos = new Map();
+    if (photoCards) {
+      await Promise.all(b.canvas.filter((i) => i.imageBase64).map(async (i) => {
+        const size = canapePhotoSize(i);
+        const png = await toPngDataUri(i.imageBase64, Math.round((size ? size.widthIn : CANAPE_SLOT.widthIn) * 150));
         if (png) wordPhotos.set(i.dishId, png);
       }));
-
-      ordered.forEach((item) => {
-        children.push(new Paragraph({ children: [new PageBreak()] }));
-        children.push(new Paragraph({
-          alignment: AlignmentType.LEFT,
-          children: nameRunsFor(item, true),
-        }));
-        if (item.description) children.push(descParagraph(item, AlignmentType.LEFT, false));
-        if (item.imageBase64) {
-          // Word has no object-fit, so the photo is given the exact size the
-          // page computes for it — a tall cone stays tall instead of filling a box.
-          const size = canapeSoloPhotoSize(item) || { widthIn: 4, heightIn: 3 };
-          children.push(new Paragraph({
-            alignment: AlignmentType.CENTER,
-            spacing: { before: twip(260) },
-            children: [new ImageRun({
-              type: "png",
-              data: dataUriToBytes(wordPhotos.get(item.dishId) || item.imageBase64),
-              transformation: { width: inchesToPx(size.widthIn), height: inchesToPx(size.heightIn) },
-            })],
-          }));
-        }
-      });
-    } else {
-      /* --- DDR / Buffet / Canapé text list: title, rule, sections, dishes —
-         mirroring the on-screen pagination so the Word file breaks where the
-         preview and PDF do. */
-      children.push(new Paragraph({
-        alignment: align,
-        spacing: { after: twip(TYPE.title.afterPx) },
-        children: [new TextRun({
-          text: titleText || st.defaultTitle,
-          font: TYPE.displayFont, bold: true, color: TYPE.ink,
-          size: halfPt(TYPE.title.px), characterSpacing: twip(TYPE.title.letterPx),
-        })],
-      }));
-
-      // The short rule under the title is an empty paragraph wearing a bottom
-      // border, indented until the border is only as wide as the rule itself.
-      const ruleIndentIn = Math.max(0, textWidthIn - TYPE.titleRuleWidthIn);
-      children.push(new Paragraph({
-        indent: b.alignment === "left"
-          ? { right: inchesToTwip(ruleIndentIn) }
-          : { left: inchesToTwip(ruleIndentIn / 2), right: inchesToTwip(ruleIndentIn / 2) },
-        spacing: { before: twip(TYPE.titleRuleSpace.beforePx), after: twip(TYPE.titleRuleSpace.afterPx) },
-        border: { bottom: { color: TYPE.titleRule, style: BorderStyle.SINGLE, size: 12, space: 0 } },
-        children: [new TextRun({ text: "", size: 2 })],
-      }));
-
-      const sectionParagraph = (category) => {
-        const secLabel = sectionLabelFor(category, opts);
-        if (!secLabel) return null;
-        return new Paragraph({
-          alignment: align,
-          spacing: { before: twip(TYPE.section.beforePx), after: twip(TYPE.section.afterPx) },
-          border: { bottom: { color: TYPE.rule, style: BorderStyle.SINGLE, size: 6, space: 4 } },
-          children: [new TextRun({
-            text: secLabel, font: TYPE.displayFont, bold: true, color: TYPE.accent,
-            size: halfPt(TYPE.section.px), characterSpacing: twip(TYPE.section.letterPx),
-          })],
-        });
-      };
-
-      const pages = paginateUnits(buildUnits(b.canvas, opts), opts);
-      pages.forEach((page, pi) => {
-        if (pi > 0) children.push(new Paragraph({ children: [new PageBreak()] }));
-        if (page.continuedSection) {
-          const p = sectionParagraph(page.continuedSection);
-          if (p) children.push(p);
-        }
-        page.units.forEach((u) => {
-          if (u.kind === "section") {
-            const p = sectionParagraph(u.category);
-            if (p) children.push(p);
-          } else {
-            u.items.forEach((item) => {
-              children.push(new Paragraph({
-                alignment: align, spacing: { before: twip(TYPE.dish.beforePx) },
-                children: nameRunsFor(item, false),
-              }));
-              if (item.description) children.push(descParagraph(item, align, b.italics));
-            });
-          }
-        });
-      });
     }
+
+    const photoParagraph = (item) => {
+      // Word has no object-fit, so the photo gets the exact size the page
+      // computes for it — a tall cone stays tall instead of filling a box.
+      const size = canapePhotoSize(item) || { widthIn: CANAPE_SLOT.widthIn, heightIn: CANAPE_SLOT.heightIn * 0.7 };
+      return new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new ImageRun({
+          type: "png",
+          data: dataUriToBytes(wordPhotos.get(item.dishId) || item.imageBase64),
+          transformation: { width: inchesToPx(size.widthIn), height: inchesToPx(size.heightIn) },
+        })],
+      });
+    };
+
+    const pushDish = (item) => {
+      if (photoCards && item.imageBase64) {
+        try {
+          const caption = [new Paragraph({ alignment: AlignmentType.LEFT, children: nameRunsFor(item, true) })];
+          if (item.description) caption.push(descParagraph(item, AlignmentType.LEFT, false));
+          children.push(new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            borders: { top: NO_BORDER, bottom: NO_BORDER, left: NO_BORDER, right: NO_BORDER,
+                       insideHorizontal: NO_BORDER, insideVertical: NO_BORDER },
+            rows: [new TableRow({ children: [
+              new TableCell({
+                width: { size: inchesToTwip(CANAPE_SLOT.widthIn), type: WidthType.DXA },
+                verticalAlign: VerticalAlign.CENTER,
+                margins: { top: twip(7), bottom: twip(7), right: inchesToTwip(0.24) },
+                children: [photoParagraph(item)],
+              }),
+              new TableCell({
+                verticalAlign: VerticalAlign.CENTER,
+                margins: { top: twip(7), bottom: twip(7) },
+                children: caption,
+              }),
+            ] })],
+          }));
+          return;
+        } catch (imgErr) {
+          console.warn("Fell back to a plain canapé row in the Word export:", imgErr.message);
+        }
+      }
+      children.push(new Paragraph({
+        alignment: align, spacing: { before: twip(TYPE.dish.beforePx) },
+        children: nameRunsFor(item, photoCards),
+      }));
+      if (item.description) children.push(descParagraph(item, align, photoCards ? false : b.italics));
+    };
+
+    const pages = paginateUnits(buildUnits(b.canvas, opts), opts);
+    pages.forEach((page, pi) => {
+      if (pi > 0) children.push(new Paragraph({ children: [new PageBreak()] }));
+      if (page.continuedSection) {
+        const p = sectionParagraph(page.continuedSection);
+        if (p) children.push(p);
+      }
+      page.units.forEach((u) => {
+        if (u.kind === "section") {
+          const p = sectionParagraph(u.category);
+          if (p) children.push(p);
+        } else {
+          u.items.forEach(pushDish);
+        }
+      });
+    });
 
     // The legend belongs to the page, not to the end of the menu — putting it
     // in the footer is what makes it repeat on every sheet, as it does on the
@@ -1530,53 +1519,189 @@ async function exportMenuDocxText(studioKey, btn) {
   }
 }
 
+/* ============================== Export: shared page layout ==============================
+   PDF and PowerPoint both need real, selectable text and real images — not a
+   screenshot of the preview — so both are built from one "layout model": an
+   array of pages, each an ordered list of draw operations (text lines, rules,
+   images) at explicit inch positions. paginateUnits()/buildUnits() still decide
+   what goes on which page (the same measurement the preview and Word use), so
+   page breaks match everywhere; only each line's exact position is computed
+   here, with jsPDF used purely as a text ruler so PDF and PowerPoint wrap
+   identically even though jsPDF draws one and PptxGenJS the other. The sizes
+   come from the canvas "Text sizes" panel. */
+function ptFromPx(px) { return px * 0.75; }
+function lineHeightIn(px) { return (ptFromPx(px) / 72) * 1.32; }
+
+function measureWrappedLines(ruler, text, widthIn, sizePx, bold, italic) {
+  ruler.setFont("helvetica", bold && italic ? "bolditalic" : bold ? "bold" : italic ? "italic" : "normal");
+  ruler.setFontSize(ptFromPx(sizePx));
+  return ruler.splitTextToSize(text, widthIn);
+}
+
+function buildExportLayout(studioKey, ruler) {
+  const b = builderOf(studioKey);
+  const st = studioOf(studioKey);
+  const opts = previewOptions(studioKey, { editable: false });
+  const fs = fontPx(b.fontSizes);
+  const photoCards = st.photos && opts.photoLayout;
+  const align = b.alignment === "left" ? "left" : "center";
+  const marginL = PAGE.marginLeftIn, marginR = PAGE.marginRightIn, marginT = PAGE.marginTopIn;
+  const contentW = PAGE.widthIn - marginL - marginR;
+  const titleText = b.uppercase ? (b.titleText || "").toUpperCase() : (b.titleText || "");
+
+  const pagesUnits = paginateUnits(buildUnits(b.canvas, opts), opts);
+  const outPages = [];
+
+  pagesUnits.forEach((page, pi) => {
+    const ops = [];
+    let y = marginT;
+
+    if (pi === 0) {
+      ops.push({ t: "text", x: marginL, y, w: contentW, align, bold: true, serif: true, size: fs.title, color: TYPE.ink, text: titleText || st.defaultTitle });
+      y += lineHeightIn(fs.title) + 0.08;
+      const ruleW = TYPE.titleRuleWidthIn;
+      const rx = align === "center" ? marginL + contentW / 2 - ruleW / 2 : marginL;
+      ops.push({ t: "rule", x: rx, y, w: ruleW, color: TYPE.titleRule });
+      y += 0.22;
+    }
+
+    const drawSection = (category) => {
+      const label = sectionLabelFor(category, opts);
+      if (!label) return;
+      y += 0.14;
+      ops.push({ t: "text", x: marginL, y, w: contentW, align, bold: true, serif: true, size: fs.header, color: TYPE.accent, text: label });
+      y += lineHeightIn(fs.header) + 0.06;
+      ops.push({ t: "rule", x: marginL, y, w: contentW, color: TYPE.rule, thin: true });
+      y += 0.16;
+    };
+    if (page.continuedSection) drawSection(page.continuedSection);
+
+    page.units.forEach((u) => {
+      if (u.kind === "section") { drawSection(u.category); return; }
+      u.items.forEach((item) => {
+        if (photoCards) {
+          const slotW = CANAPE_SLOT.widthIn, slotH = CANAPE_SLOT.heightIn;
+          const rowTop = y;
+          const textX = marginL + slotW + 0.24;
+          const textW = contentW - slotW - 0.24;
+          const nameText = (b.uppercase ? item.name.toUpperCase() : item.name) + (item.allergens ? "  -  " + item.allergens : "");
+          const nameLines = measureWrappedLines(ruler, nameText, textW, fs.dish, true, false);
+          const descLines = item.description ? measureWrappedLines(ruler, item.description, textW, fs.desc, false, false) : [];
+          const blockH = nameLines.length * lineHeightIn(fs.dish) + (descLines.length ? 0.05 + descLines.length * lineHeightIn(fs.desc) : 0);
+          const rowH = Math.max(slotH, blockH);
+          if (item.imageBase64) {
+            const size = canapePhotoSize(item) || { widthIn: slotW, heightIn: slotH * 0.7 };
+            ops.push({ t: "image", x: marginL + (slotW - size.widthIn) / 2, y: rowTop + (rowH - size.heightIn) / 2, w: size.widthIn, h: size.heightIn, data: item.imageBase64 });
+          }
+          let ty = rowTop + (rowH - blockH) / 2;
+          nameLines.forEach((l) => { ops.push({ t: "text", x: textX, y: ty, w: textW, align: "left", bold: true, size: fs.dish, color: TYPE.ink, text: l }); ty += lineHeightIn(fs.dish); });
+          if (descLines.length) {
+            ty += 0.05;
+            descLines.forEach((l) => { ops.push({ t: "text", x: textX, y: ty, w: textW, align: "left", size: fs.desc, color: "4A4038", text: l }); ty += lineHeightIn(fs.desc); });
+          }
+          y = rowTop + rowH + 0.22;
+        } else {
+          const nameText = b.uppercase ? item.name.toUpperCase() : item.name;
+          const allergSuffix = item.allergens ? "   [" + item.allergens + "]" : "";
+          const nameLines = measureWrappedLines(ruler, nameText + allergSuffix, contentW, fs.dish, true, false);
+          nameLines.forEach((l) => { ops.push({ t: "text", x: marginL, y, w: contentW, align, bold: true, size: fs.dish, color: TYPE.ink, text: l }); y += lineHeightIn(fs.dish); });
+          y += 0.04;
+          if (item.description) {
+            const descLines = measureWrappedLines(ruler, item.description, contentW, fs.desc, false, b.italics);
+            descLines.forEach((l) => { ops.push({ t: "text", x: marginL, y, w: contentW, align, italic: b.italics, size: fs.desc, color: TYPE.muted, text: l }); y += lineHeightIn(fs.desc); });
+          }
+          y += 0.1;
+        }
+      });
+    });
+
+    outPages.push(ops);
+  });
+
+  return { b, st, outPages };
+}
+
+function hexRgb(hex) {
+  const h = (hex || "000000").replace("#", "");
+  return [parseInt(h.slice(0, 2), 16) || 0, parseInt(h.slice(2, 4), 16) || 0, parseInt(h.slice(4, 6), 16) || 0];
+}
+
+async function imageUrlToDataUri(url) {
+  const blob = await fetch(url).then((r) => r.blob());
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.onerror = reject;
+    fr.readAsDataURL(blob);
+  });
+}
+
+const LEGEND_TEXT = "Allergens: D — Dairy   ·   G — Gluten   ·   S — Seafood   ·   N — Nuts";
+
 /* ============================== Export: PDF ==============================
-   Renders a clean off-screen copy of the very same DOM/CSS the preview uses
-   (no editing outlines or buttons) at high resolution, then rasterizes each
-   page into a PDF sized to the real sheet — so the PDF matches the preview by
-   construction rather than by a second layout engine agreeing with the first. */
+   Real vector text and real embedded images on an A4 page — selectable,
+   searchable and copy-pasteable in any PDF reader. */
 async function exportMenuPdf(studioKey, btn) {
   const b = builderOf(studioKey);
   const st = studioOf(studioKey);
   if (!b.canvas.length) { toast(`Add at least one ${st.noun.toLowerCase()} before exporting.`, "error"); return; }
   const label = btn.textContent;
   btn.disabled = true; btn.textContent = "Building…";
-  let holder;
   try {
-    const pages = buildMenuPagesHTML(b.canvas, previewOptions(studioKey, { editable: false }));
-    holder = document.createElement("div");
-    holder.style.position = "fixed";
-    holder.style.left = "-10000px";
-    holder.style.top = "0";
-    holder.innerHTML = pages.map((p) => `<div class="menu-page-wrap" style="padding:0;">${p}</div>`).join("");
-    document.body.appendChild(holder);
-    if (document.fonts && document.fonts.ready) await document.fonts.ready;
-
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ unit: "in", format: [PAGE.widthIn, PAGE.heightIn] });
-    const pageEls = holder.querySelectorAll(".menu-page");
-    for (let i = 0; i < pageEls.length; i++) {
-      const canvas = await html2canvas(pageEls[i], { scale: 3, useCORS: true, backgroundColor: "#ffffff" });
-      if (i > 0) pdf.addPage([PAGE.widthIn, PAGE.heightIn]);
-      pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, PAGE.widthIn, PAGE.heightIn);
-    }
-    pdf.save(`${sanitizeFilename(b.filename || b.titleText || st.short)}.pdf`);
-    toast(`PDF downloaded — ${plural(pageEls.length, "page")}.`);
+    const doc = new jsPDF({ unit: "in", format: [PAGE.widthIn, PAGE.heightIn] });
+    const { outPages } = buildExportLayout(studioKey, doc);
+    const bgUri = await imageUrlToDataUri("assets/page-bg.jpg");
+
+    const drawOp = (op) => {
+      if (op.t === "rule") {
+        doc.setDrawColor(...hexRgb(op.color));
+        doc.setLineWidth(op.thin ? 0.008 : 0.02);
+        doc.line(op.x, op.y, op.x + op.w, op.y);
+        return;
+      }
+      if (op.t === "image") {
+        const fmt = /^data:image\/png/i.test(op.data) ? "PNG" : "JPEG";
+        try { doc.addImage(op.data, fmt, op.x, op.y, op.w, op.h); } catch (imgErr) { console.warn("Skipped an image in the PDF:", imgErr.message); }
+        return;
+      }
+      doc.setFont(op.serif ? "times" : "helvetica", op.bold && op.italic ? "bolditalic" : op.bold ? "bold" : op.italic ? "italic" : "normal");
+      doc.setFontSize(ptFromPx(op.size));
+      doc.setTextColor(...hexRgb(op.color));
+      const xPos = op.align === "center" ? op.x + op.w / 2 : op.x;
+      doc.text(op.text, xPos, op.y + (ptFromPx(op.size) / 72) * 0.8, { align: op.align });
+    };
+
+    outPages.forEach((ops, i) => {
+      if (i > 0) doc.addPage([PAGE.widthIn, PAGE.heightIn]);
+      doc.addImage(bgUri, "JPEG", 0, 0, PAGE.widthIn, PAGE.heightIn);
+      ops.forEach(drawOp);
+
+      const legendY = PAGE.heightIn - 1.05;
+      doc.setDrawColor(...hexRgb(TYPE.rule)); doc.setLineWidth(0.006);
+      doc.line(PAGE.marginLeftIn, legendY, PAGE.widthIn - PAGE.marginRightIn, legendY);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(ptFromPx(TYPE.legend.px)); doc.setTextColor(...hexRgb(TYPE.muted));
+      doc.text(LEGEND_TEXT, PAGE.widthIn / 2, legendY + 0.14, { align: "center" });
+
+      if (outPages.length > 1) {
+        doc.setFontSize(ptFromPx(8));
+        doc.text(`${i + 1} / ${outPages.length}`, PAGE.marginLeftIn, PAGE.heightIn - 0.5);
+      }
+    });
+
+    doc.save(`${sanitizeFilename(b.filename || b.titleText || st.short)}.pdf`);
+    toast(`PDF downloaded — ${plural(outPages.length, "page")}.`);
   } catch (err) {
     console.error(err);
     toast("Couldn't build the PDF: " + err.message, "error");
   } finally {
-    if (holder) document.body.removeChild(holder);
     btn.disabled = false; btn.textContent = label;
   }
 }
 
 /* ============================== Export: PowerPoint (.pptx) ==============================
-   Same idea as the designed Word export and the PDF: a clean off-screen copy
-   of the live preview, rasterized page by page, one full-bleed slide per
-   sheet on an A4-sized custom layout — so the deck matches the on-screen menu
-   exactly, the same way the PDF does. Nothing in a PowerPoint export can stay
-   editable the way Word text can, so there's only the one flavour. */
+   The same layout model, drawn as real PowerPoint text boxes, lines and
+   pictures — every line of text stays selectable and editable in PowerPoint. */
 async function exportMenuPptx(studioKey, btn) {
   const b = builderOf(studioKey);
   const st = studioOf(studioKey);
@@ -1584,34 +1709,60 @@ async function exportMenuPptx(studioKey, btn) {
   if (typeof PptxGenJS === "undefined") { toast("PowerPoint export isn't available — PptxGenJS didn't load.", "error"); return; }
   const label = btn.textContent;
   btn.disabled = true; btn.textContent = "Building…";
-  let holder;
   try {
-    const pages = buildMenuPagesHTML(b.canvas, previewOptions(studioKey, { editable: false }));
-    holder = document.createElement("div");
-    holder.style.position = "fixed";
-    holder.style.left = "-10000px";
-    holder.style.top = "0";
-    holder.innerHTML = pages.map((p) => `<div class="menu-page-wrap" style="padding:0;">${p}</div>`).join("");
-    document.body.appendChild(holder);
-    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    // jsPDF only measures text here (splitTextToSize), so line breaks match the PDF.
+    const ruler = new window.jspdf.jsPDF({ unit: "in", format: [PAGE.widthIn, PAGE.heightIn] });
+    const { outPages } = buildExportLayout(studioKey, ruler);
+    const bgUri = await imageUrlToDataUri("assets/page-bg.jpg");
 
     const pres = new PptxGenJS();
     pres.defineLayout({ name: "MENUETTE_A4", width: PAGE.widthIn, height: PAGE.heightIn });
     pres.layout = "MENUETTE_A4";
 
-    const pageEls = holder.querySelectorAll(".menu-page");
-    for (let i = 0; i < pageEls.length; i++) {
-      const canvas = await html2canvas(pageEls[i], { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+    const drawOp = (slide, op) => {
+      if (op.t === "rule") {
+        slide.addShape("line", { x: op.x, y: op.y, w: op.w, h: 0, line: { color: op.color.replace("#", ""), width: op.thin ? 0.75 : 1.5 } });
+        return;
+      }
+      if (op.t === "image") {
+        slide.addImage({ data: op.data, x: op.x, y: op.y, w: op.w, h: op.h });
+        return;
+      }
+      slide.addText(op.text, {
+        x: op.x, y: op.y - 0.03, w: op.w, h: lineHeightIn(op.size) + 0.04,
+        align: op.align, bold: !!op.bold, italic: !!op.italic,
+        fontFace: op.serif ? "Playfair Display" : "DM Sans",
+        fontSize: ptFromPx(op.size), color: op.color.replace("#", ""),
+        valign: "top", margin: 0, wrap: false,
+      });
+    };
+
+    outPages.forEach((ops, i) => {
       const slide = pres.addSlide();
-      slide.addImage({ data: canvas.toDataURL("image/jpeg", 0.92), x: 0, y: 0, w: PAGE.widthIn, h: PAGE.heightIn });
-    }
+      slide.background = { data: bgUri };
+      ops.forEach((op) => drawOp(slide, op));
+
+      const legendY = PAGE.heightIn - 1.05;
+      const legendW = PAGE.widthIn - PAGE.marginLeftIn - PAGE.marginRightIn;
+      slide.addShape("line", { x: PAGE.marginLeftIn, y: legendY, w: legendW, h: 0, line: { color: TYPE.rule, width: 0.5 } });
+      slide.addText(LEGEND_TEXT, {
+        x: PAGE.marginLeftIn, y: legendY + 0.06, w: legendW, h: 0.3,
+        align: "center", fontFace: "DM Sans", fontSize: ptFromPx(TYPE.legend.px), color: TYPE.muted, valign: "top",
+      });
+      if (outPages.length > 1) {
+        slide.addText(`${i + 1} / ${outPages.length}`, {
+          x: PAGE.marginLeftIn, y: PAGE.heightIn - 0.62, w: 1, h: 0.2,
+          fontFace: "DM Sans", fontSize: 8, color: TYPE.muted, valign: "top",
+        });
+      }
+    });
+
     await pres.writeFile({ fileName: `${sanitizeFilename(b.filename || b.titleText || st.short)}.pptx` });
-    toast(`PowerPoint downloaded — ${plural(pageEls.length, "slide")}.`);
+    toast(`PowerPoint downloaded — ${plural(outPages.length, "slide")}.`);
   } catch (err) {
     console.error(err);
     toast("Couldn't build the PowerPoint: " + err.message, "error");
   } finally {
-    if (holder) document.body.removeChild(holder);
     btn.disabled = false; btn.textContent = label;
   }
 }

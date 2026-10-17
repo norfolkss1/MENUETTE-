@@ -94,15 +94,53 @@ const STUDIOS = {
     collection: "canapeDishes",
     sectionsField: "canapeCategories",
     sectionsNoun: "Group",
-    theme: "canape",        /* gold-swirl cream page, one canapé per sheet — see CANAPÉ MENU template */
+    theme: "canape",        /* gold-swirl cream page, three photo cards per sheet — see CANAPÉ MENU template */
     layout: "photo",
     photos: true,
     costing: true,
     defaultTitle: "CANAPÉ MENU",
-    blurb: "Photo-led canapé selections, one to a page, on the branded cover-and-card template.",
+    blurb: "Photo-led canapé selections, three to a page, on the branded template.",
   },
 };
 const STUDIO_KEYS = Object.keys(STUDIOS);
+
+/* ============================== Text sizes ==============================
+   Three sizes per studio, set from the canvas "Text sizes" panel, in points
+   (what Word shows): Headers (section headings — the menu title scales with
+   them), Dish names and Descriptions. The last choice is remembered per
+   studio in this browser (localStorage) and used for every new menu; a saved
+   menu also keeps the sizes it was saved with. */
+const FONT_DEFAULTS_PT = {
+  ddr:    { header: 9.5, dish: 9.5,  desc: 8.5 },
+  buffet: { header: 9.5, dish: 9.5,  desc: 8.5 },
+  canape: { header: 9.5, dish: 10.5, desc: 8.5 },
+};
+const FONT_LIMITS_PT = { header: [6, 24], dish: [6, 20], desc: [5, 16] };
+const FONT_STORAGE_PREFIX = "menuette-fontsizes-";
+
+function cleanFontSizes(raw, studioKey) {
+  const base = FONT_DEFAULTS_PT[studioKey] || FONT_DEFAULTS_PT.ddr;
+  const out = {};
+  Object.keys(base).forEach((k) => {
+    const n = raw && Number(raw[k]);
+    const [lo, hi] = FONT_LIMITS_PT[k];
+    out[k] = Number.isFinite(n) && n > 0 ? Math.min(hi, Math.max(lo, Math.round(n * 2) / 2)) : base[k];
+  });
+  return out;
+}
+function loadFontSizes(studioKey) {
+  try { return cleanFontSizes(JSON.parse(localStorage.getItem(FONT_STORAGE_PREFIX + studioKey)), studioKey); }
+  catch (e) { return cleanFontSizes(null, studioKey); }
+}
+function saveFontSizes(studioKey, sizes) {
+  try { localStorage.setItem(FONT_STORAGE_PREFIX + studioKey, JSON.stringify(cleanFontSizes(sizes, studioKey))); } catch (e) { /* private mode: just not remembered */ }
+}
+/* Points -> CSS px for the page, plus the derived sizes (menu title is 1.75x
+   the header size; allergen codes sit a little under the dish name). */
+function fontPx(sizes) {
+  const px = (pt) => pt / 0.75;
+  return { title: px(sizes.header * 1.75), header: px(sizes.header), dish: px(sizes.dish), allerg: px(sizes.dish * 0.85), desc: px(sizes.desc) };
+}
 
 function freshBuilder(studioKey) {
   return {
@@ -121,6 +159,7 @@ function freshBuilder(studioKey) {
     photoLayout: STUDIOS[studioKey].layout === "photo",
     filename: "",
     wordStyle: "text",            /* "text" | "designed" — Word export flavour */
+    fontSizes: loadFontSizes(studioKey),   /* { header, dish, desc } in pt — remembered per studio */
     activeMenuId: null,
     sectionLabels: {},
     sectionOrder: [],

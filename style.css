@@ -422,20 +422,16 @@ select.field { cursor: pointer; }
 .menu-page.theme-sand .allergen-legend { left: 1.15in; right: 0.55in; }
 .menu-page.theme-sand .page-number { left: 1.15in; }
 
-/* --- canapé theme: the same swirl template, one dish to a page.
-   Every page after the cover uses the logo-free variant of the background —
-   the printed book shows no mark on the food pages, only on its cover — so
-   this is the one place theme-canape's background is overridden per page. */
-.menu-page.theme-canape { background-image: url('assets/page-bg-plain.jpg'); }
-.menu-page.theme-canape.cover-page { background-image: url('assets/page-bg.jpg'); }
-.menu-page.theme-canape .menu-content { padding: 1.05in 0.9in 1.35in 0.9in; }
-.menu-page.theme-canape .allergen-legend { left: 0.9in; right: 0.9in; }
-.menu-page.theme-canape .page-number { left: 0.9in; }
+/* --- canapé theme: the same swirl template as sand, three photo cards to a
+   page instead of a plain list — same margins, same background on every page. */
+.menu-page.theme-canape .menu-content { padding: 1.05in 0.55in 1.35in 1.15in; }
+.menu-page.theme-canape .allergen-legend { left: 1.15in; right: 0.55in; }
+.menu-page.theme-canape .page-number { left: 1.15in; }
 
 .menu-page .menu-content { position: relative; z-index: 1; }
 
 .menu-page .menu-title {
-  font-family: var(--font-display); font-weight: 600; font-size: 22px;
+  font-family: var(--font-display); font-weight: 600; font-size: var(--fs-title, 22px);
   letter-spacing: 1.5px; margin-bottom: 4px;
 }
 .menu-page .menu-title.align-left { text-align: left; }
@@ -446,17 +442,10 @@ select.field { cursor: pointer; }
 .menu-page .menu-title-rule.align-center { margin-left: auto; margin-right: auto; }
 .menu-page .menu-title-rule.continued { opacity: 0; margin: 0 0 6px; height: 1px; }
 
-/* --- canapé cover page: title only, centred on the sheet like the printed
-   book's title page, independent of content height. --- */
-.menu-page.theme-canape.cover-page .menu-content { min-height: 9.3in; }
-.menu-page.theme-canape.cover-page .menu-title {
-  position: absolute; left: 0.9in; right: 0.9in; top: 44%; transform: translateY(-50%);
-  text-align: center; font-size: 34px; letter-spacing: 2.5px; margin: 0;
-}
 
 .menu-page .menu-section-row { position: relative; margin: 20px 0 10px; min-height: 20px; }
 .menu-page .menu-section {
-  font-family: var(--font-display); font-weight: 700; font-size: 12.5px;
+  font-family: var(--font-display); font-weight: 700; font-size: var(--fs-header, 12.5px);
   letter-spacing: 2px; color: var(--page-accent);
   padding-bottom: 5px; border-bottom: 1px solid var(--page-border);
 }
@@ -480,14 +469,14 @@ select.field { cursor: pointer; }
 .menu-page .section-move-btn:hover { background: var(--page-accent); color: #fff; }
 .menu-page .section-move-btn:disabled { opacity: .25; cursor: default; }
 
-.menu-page .menu-dish { font-size: 12.5px; margin-top: 8px; position: relative; }
+.menu-page .menu-dish { font-size: var(--fs-dish, 12.5px); margin-top: 8px; position: relative; }
 .menu-page .menu-dish.align-left { text-align: left; }
 .menu-page .menu-dish.align-center { text-align: center; }
 .menu-page .dname { font-weight: 700; }
-.menu-page .dallergens { font-style: italic; font-size: 10px; color: var(--page-muted); margin-left: 4px; }
+.menu-page .dallergens { font-style: italic; font-size: var(--fs-allerg, 10px); color: var(--page-muted); margin-left: 4px; }
 .menu-page .dallergens:not(:empty)::before { content: "["; }
 .menu-page .dallergens:not(:empty)::after { content: "]"; }
-.menu-page .ddesc { font-style: italic; font-size: 11px; color: var(--page-muted); margin-top: 2px; display: block; }
+.menu-page .ddesc { font-style: italic; font-size: var(--fs-desc, 11px); color: var(--page-muted); margin-top: 2px; display: block; }
 .menu-page .menu-empty { color: var(--page-muted); font-size: 13px; text-align: center; padding: 40px 10px; }
 
 /* Remove-from-menu control, revealed on hover over its own dish */
@@ -498,7 +487,7 @@ select.field { cursor: pointer; }
   font-size: 9px; line-height: 1; display: flex; align-items: center; justify-content: center;
   opacity: 0; transition: opacity .12s; box-shadow: var(--shadow-sm); z-index: 3;
 }
-.menu-dish:hover .dish-drop, .canape-solo:hover .dish-drop { opacity: 1; }
+.menu-dish:hover .dish-drop, .canape-card:hover .dish-drop { opacity: 1; }
 .menu-page .dish-drop:hover { background: var(--danger); color: #fff; }
 
 .menu-page .allergen-legend {
@@ -512,29 +501,32 @@ select.field { cursor: pointer; }
   font-size: 8px; letter-spacing: 1px; color: var(--page-muted); z-index: 2;
 }
 
-/* ---------------- Canapé pages ----------------
-   One dish per sheet, matching the CANAPÉ MENU template: name + allergen
-   codes as one bold line top-left, a plain description underneath, and the
-   dish photo large below it. The photo is still a cropped-to-shape cutout
-   with a soft shadow rather than a hard-edged frame — every source bitmap is
-   cut off at one edge (see the README), and a shadowed cutout reads as a
-   photograph resting on the page rather than a slice through the plate. */
-.menu-page.theme-canape .canape-solo { position: relative; }
-.menu-page.theme-canape .canape-solo-text { max-width: 5.4in; text-align: left; }
-.menu-page.theme-canape .canape-solo-text .dname { font-size: 15px; letter-spacing: .4px; }
-.menu-page.theme-canape .canape-solo-text .dallergens {
-  font-style: normal; font-weight: 700; color: inherit; font-size: 13px; margin-left: 0;
+/* ---------------- Canapé photo cards ----------------
+   Three to a page, one per row: a photo on the left, name/allergens/
+   description beside it — the CANAPÉ MENU template's typography (a bold
+   name + allergen line, a plain description). The photo is a transparent
+   cutout with a soft shadow that follows its own alpha shape, so there is no
+   white box behind the food (a white panel that still appears means the
+   source PNG itself carries an opaque white matte — re-export it with real
+   transparency). */
+.menu-page .canape-grid { display: block; margin-bottom: 0.22in; }
+.menu-page .canape-card {
+  position: relative;
+  display: grid; grid-template-columns: 2.3in 1fr; gap: 0 0.24in; align-items: center;
 }
-.menu-page.theme-canape .canape-solo-text .dallergens:not(:empty)::before { content: " - "; }
-.menu-page.theme-canape .canape-solo-text .dallergens:not(:empty)::after { content: ""; }
-.menu-page.theme-canape .canape-solo-text .ddesc {
-  font-size: 12px; margin-top: 6px; color: #4A4038; max-width: 4.8in;
+.menu-page .canape-slot { height: 2.3in; display: flex; align-items: center; justify-content: center; }
+.menu-page .canape-photo {
+  display: block; background: transparent;
+  filter: drop-shadow(0 6px 10px rgba(30,20,10,.22));
 }
-.menu-page.theme-canape .canape-solo-photo { margin-top: 0.55in; text-align: center; }
-.menu-page.theme-canape .canape-solo-img {
-  display: inline-block; border-radius: 2px;
-  filter: drop-shadow(0 10px 18px rgba(30,20,10,.22));
+.menu-page .canape-text { font-size: 12.5px; line-height: 1.4; text-align: left; }
+.menu-page .canape-card .dname { font-size: var(--fs-dish, 14px); letter-spacing: .3px; }
+.menu-page .canape-card .dallergens {
+  font-style: normal; font-weight: 700; color: inherit; font-size: var(--fs-allerg, 12px);
 }
+.menu-page .canape-card .dallergens:not(:empty)::before { content: " - "; }
+.menu-page .canape-card .dallergens:not(:empty)::after { content: ""; }
+.menu-page .canape-card .ddesc { font-size: var(--fs-desc, 11.5px); margin-top: 5px; color: #4A4038; font-style: normal; }
 
 /* uppercase is a pure display transform — it never bakes into stored text, so
    the inline-editable spans always hold the real, mixed-case value */
@@ -823,3 +815,9 @@ select.field { cursor: pointer; }
   .menu-page { page-break-after: always; }
   .menu-page:last-of-type { page-break-after: auto; }
 }
+
+/* ---------------- Text-size controls (canvas "Text sizes") ---------------- */
+.size-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 6px 0 4px; }
+.size-grid label { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; color: var(--muted); font-weight: 600; }
+.size-grid .field { width: 100%; text-align: center; }
+.size-note { font-size: 11px; color: var(--muted-2); margin: 2px 0 8px; }
