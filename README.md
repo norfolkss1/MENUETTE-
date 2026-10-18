@@ -145,7 +145,7 @@ approvals.js               send for approval, approve / send back, the archive
 firebase-config.js         your Firebase project config (fill this in)
 data/default-categories.js seed sections + seed PIN (only used on the very first run)
 assets/page-bg.jpg         the gold-swirl cream page, "ME DUBAI" mark baked in (DDR/Buffet pages, canapé cover)
-assets/page-bg-plain.jpg   the same page with the mark removed (individual canapé dish pages)
+assets/page-bg-plain.jpg   the same page with the mark removed (no longer used)
 assets/page-bg.png         the same two backgrounds as PNG, used only by the Word export
 assets/page-bg-plain.png   (see "A note on the Word export" below)
 ```
@@ -212,8 +212,14 @@ what you don't want, reorder, rename the station heading on the page.
 photo on the left, and beside it the dish name with allergen codes on one bold
 line and a plain description underneath. The page title and section heading
 sit at the top of the first page and the section heading repeats when a
-section continues. Photos are transparent cutouts with a soft shadow, sized in
+section continues. Photos are transparent cutouts (plate and its own shadow only), sized in
 inches, so nothing sits behind them.
+
+**Template photos.** `assets/canape/` holds the 21 cutouts extracted straight
+from `CANAPE_MENU.pptx` plus a `manifest.json`. In the Canapé library, press
+**🖼️ Load photos from CANAPÉ MENU template**: it matches them to your dishes by
+name and replaces their photos, then offers to add any template dishes you
+don't have yet (with their description and allergens).
 
 Worth knowing, because it explains why the photos look the way they do:
 **every canapé bitmap in the source menus is cut off at one edge.** Those books

@@ -55,6 +55,7 @@ function renderStudioShell(studioKey) {
                 <input id="picker-search-${studioKey}" class="field field-sm" placeholder="🔍 Search ${escapeHtml(st.plural)}…" value="${escapeHtml(b.pickerSearch)}">
                 <button class="btn btn-primary btn-sm" data-act="add-dish" title="Add a new ${escapeHtml(st.noun.toLowerCase())}">＋ New</button>
               </div>
+              ${st.photos ? `<button class="btn btn-ghost btn-sm btn-block" data-act="template-photos" title="Replace the photos with the transparent cutouts from CANAPE_MENU.pptx">🖼️ Load photos from CANAPÉ MENU template</button>` : ""}
               <div id="picker-cats-${studioKey}" class="cat-row"></div>
               <div id="picker-list-${studioKey}" class="rail-list"></div>
             </div>
@@ -119,6 +120,8 @@ function renderStudioShell(studioKey) {
     renderPickerList(studioKey);
   });
   el.querySelector('[data-act="add-dish"]').addEventListener("click", () => openDishModal(studioKey, null));
+  const tpBtn = el.querySelector('[data-act="template-photos"]');
+  if (tpBtn) tpBtn.addEventListener("click", () => loadTemplatePhotos(studioKey, tpBtn));
   el.querySelectorAll("[data-source]").forEach((tab) => tab.addEventListener("click", () => {
     b.source = tab.dataset.source;
     el.querySelectorAll("[data-source]").forEach((t) => t.classList.toggle("active", t.dataset.source === b.source));
@@ -1778,4 +1781,60 @@ function printMenu(studioKey) {
   document.title = sanitizeFilename(b.filename || b.titleText || st.short);
   window.print();
   setTimeout(() => { document.title = prevTitle; }, 500);
+}
+
+
+/* ============================== Template photos ==============================
+   assets/canape/ holds the transparent cutouts extracted from CANAPE_MENU.pptx
+   (plate and shadow only — no cream rectangle behind them) plus manifest.json.
+   This matches them to the canapés in the library by name, replaces their
+   photos, and offers to add any that aren't in the library yet. */
+function normName(s) {
+  return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+async function loadTemplatePhotos(studioKey, btn) {
+  const st = studioOf(studioKey);
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = "Loading photos…";
+  try {
+    const manifest = await (await fetch("assets/canape/manifest.json", { cache: "no-cache" })).json();
+    const toData = async (file) => {
+      const blob = await (await fetch("assets/canape/" + file)).blob();
+      return await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
+    };
+    const library = dishesOf(studioKey);
+    const used = new Set();
+    let updated = 0;
+    const missing = [];
+    for (const it of manifest.items) {
+      const key = normName(it.name);
+      const isEclair = /eclair/.test(key);
+      let match = library.find((d) => !used.has(d.id) && normName(d.name) === key);
+      if (!match && !isEclair) match = library.find((d) => !used.has(d.id) && normName(d.name).replace(/ (bruschetta|eclair)$/, "") === key);
+      if (match) {
+        used.add(match.id);
+        await db.collection(st.collection).doc(match.id).update({ imageBase64: await toData(it.file), photoW: it.w, photoH: it.h });
+        updated++;
+      } else missing.push(it);
+    }
+    let added = 0;
+    if (missing.length && confirm(`${updated} photo${updated === 1 ? "" : "s"} updated.\n\n${missing.length} dish${missing.length === 1 ? "" : "es"} from the template aren't in your library yet (${missing.map((m) => m.name).join(", ")}).\nAdd them with their photo, description and allergens?`)) {
+      const sections = sectionsOf(studioKey);
+      const pick = (sweet) => sections.find((s) => (/sweet/i.test(s)) === sweet) || sections[sweet ? 1 : 0] || "Uncategorized";
+      for (const it of missing) {
+        await db.collection(st.collection).add({
+          name: it.name, category: pick(it.sweet), description: it.description, allergens: it.allergens,
+          ingredients: [], cost: 0, prepItems: [],
+          imageBase64: await toData(it.file), photoW: it.w, photoH: it.h,
+        });
+        added++;
+      }
+    }
+    toast(`${updated} photo${updated === 1 ? "" : "s"} updated${added ? `, ${added} dish${added === 1 ? "" : "es"} added` : ""}.`);
+  } catch (err) {
+    console.error(err);
+    toast("Couldn't load the template photos: " + (err && err.message ? err.message : err), "error");
+  } finally {
+    btn.disabled = false; btn.textContent = label;
+  }
 }
