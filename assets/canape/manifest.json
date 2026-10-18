@@ -1,0 +1,193 @@
+{
+ "items": [
+  {
+   "name": "Mushroom In The Forest",
+   "file": "mushroom-in-the-forest.png",
+   "w": 720,
+   "h": 685,
+   "allergens": "D, G",
+   "description": "Wild mushroom texture, sourdough bruschetta, truffle",
+   "sweet": false
+  },
+  {
+   "name": "Aquacomolada",
+   "file": "aquacomolada.png",
+   "w": 720,
+   "h": 376,
+   "allergens": "G",
+   "description": "Sourdough bruschetta, avocado, olive oil caviar",
+   "sweet": false
+  },
+  {
+   "name": "Tomato Experience",
+   "file": "tomato-experience.png",
+   "w": 699,
+   "h": 720,
+   "allergens": "D, G",
+   "description": "Tomato tart, burrata, caviar made of tomato, balsamic and smoked paprika",
+   "sweet": false
+  },
+  {
+   "name": "Cabrito",
+   "file": "cabrito.png",
+   "w": 720,
+   "h": 689,
+   "allergens": "D, N",
+   "description": "Goat cheese, pesto, olive soil",
+   "sweet": false
+  },
+  {
+   "name": "Lemon Cone",
+   "file": "lemon-cone.png",
+   "w": 277,
+   "h": 720,
+   "allergens": "D, G, S",
+   "description": "Black fish roe, dill, cream cheese, gold dust",
+   "sweet": false
+  },
+  {
+   "name": "Salmon Textures",
+   "file": "salmon-textures.png",
+   "w": 251,
+   "h": 720,
+   "allergens": "D, G, S",
+   "description": "Smoked salmon, salmon roe, dill, lemon cone",
+   "sweet": false
+  },
+  {
+   "name": "Pulpo",
+   "file": "pulpo.png",
+   "w": 720,
+   "h": 627,
+   "allergens": "S, D",
+   "description": "Octopus, potato, paprika caviar, cheese",
+   "sweet": false
+  },
+  {
+   "name": "Atún",
+   "file": "atun.png",
+   "w": 720,
+   "h": 541,
+   "allergens": "N, S",
+   "description": "Tuna, sesame, ponzu, sago",
+   "sweet": false
+  },
+  {
+   "name": "The Pearl",
+   "file": "the-pearl.png",
+   "w": 720,
+   "h": 666,
+   "allergens": "",
+   "description": "Squid-ink crispy sago, avocado, olive oil caviar, serrano pepper",
+   "sweet": false
+  },
+  {
+   "name": "Choux",
+   "file": "choux.png",
+   "w": 720,
+   "h": 548,
+   "allergens": "G, D, S",
+   "description": "Smoked salmon, salmon roe, dill",
+   "sweet": false
+  },
+  {
+   "name": "The Land",
+   "file": "the-land.png",
+   "w": 720,
+   "h": 667,
+   "allergens": "D, G",
+   "description": "Wagyu beef tartar, dauphinoise potato, parmesan popcorn",
+   "sweet": false
+  },
+  {
+   "name": "Sando",
+   "file": "sando.png",
+   "w": 720,
+   "h": 537,
+   "allergens": "G, D",
+   "description": "Wagyu beef, brioche, mushroom, jus",
+   "sweet": false
+  },
+  {
+   "name": "Vol Au Vent",
+   "file": "vol-au-vent.png",
+   "w": 720,
+   "h": 668,
+   "allergens": "D, G",
+   "description": "Smoked chicken, alliums, manchego",
+   "sweet": false
+  },
+  {
+   "name": "Mushroom In The Forest (Éclair)",
+   "file": "mushroom-in-the-forest--eclair.jpg",
+   "w": 712,
+   "h": 720,
+   "allergens": "D, G",
+   "description": "Wild mushroom texture, éclair, truffle",
+   "sweet": false
+  },
+  {
+   "name": "Taco",
+   "file": "taco.png",
+   "w": 627,
+   "h": 720,
+   "allergens": "D",
+   "description": "Braised chicken, chipotle, cilantro",
+   "sweet": false
+  },
+  {
+   "name": "McME",
+   "file": "mcme.png",
+   "w": 532,
+   "h": 720,
+   "allergens": "D, G",
+   "description": "Wagyu beef, brioche, heirloom tomato",
+   "sweet": false
+  },
+  {
+   "name": "Pizza",
+   "file": "pizza.png",
+   "w": 602,
+   "h": 720,
+   "allergens": "D, G",
+   "description": "Mozzarella, plum tomato, mushroom",
+   "sweet": false
+  },
+  {
+   "name": "Strawberry Club",
+   "file": "strawberry-club.png",
+   "w": 720,
+   "h": 623,
+   "allergens": "D, G",
+   "description": "Vanilla, golden leaf",
+   "sweet": true
+  },
+  {
+   "name": "Brownie",
+   "file": "brownie.png",
+   "w": 720,
+   "h": 577,
+   "allergens": "D, G, N",
+   "description": "72% Venezuelan chocolate, walnut, hazelnut",
+   "sweet": true
+  },
+  {
+   "name": "Macaron",
+   "file": "macaron.png",
+   "w": 720,
+   "h": 713,
+   "allergens": "D, G",
+   "description": "",
+   "sweet": true
+  },
+  {
+   "name": "Cheese Cake",
+   "file": "cheese-cake.png",
+   "w": 711,
+   "h": 720,
+   "allergens": "D, G",
+   "description": "Blueberry, vanilla",
+   "sweet": true
+  }
+ ]
+}
